@@ -4,6 +4,7 @@
 
 #include "MetadataTreeModel.h"
 #include <gtkmm/treeview.h>
+#include <gtkmm/scrolledwindow.h>
 #include <gtkmm/window.h>
 
 class MainWindow : public Gtk::Window {
@@ -13,6 +14,7 @@ public:
 	virtual ~MainWindow();
 
 private:
+    Gtk::ScrolledWindow scrolled;
 	Glib::RefPtr<MetadataTreeModel> model;
 	Gtk::TreeView tree_view;
 

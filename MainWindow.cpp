@@ -13,7 +13,10 @@ MainWindow::MainWindow(const std::string& path) :
 	tree_view.set_model(model);
 	tree_view.append_column("Predicate", model->columns.pred_column);
 	tree_view.append_column("Value", model->columns.value_column);
-	add(tree_view);
+	scrolled.add(tree_view);
+
+    scrolled.set_policy(Gtk::POLICY_AUTOMATIC, Gtk::POLICY_AUTOMATIC);
+    add(scrolled);
 
 	show_all_children();
 
