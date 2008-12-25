@@ -1,15 +1,21 @@
-CXXFLAGS =	-O2 -g -Wall -fmessage-length=0 $(shell pkg-config gtkmm-2.4 --cflags) $(shell pkg-config exiv2 --cflags)
+CXXFLAGS = -O2 -g -Wall -fmessage-length=0 $(shell pkg-config gtkmm-2.4 --cflags) $(shell pkg-config exiv2 --cflags)
+LDFLAGS = -Wl,-O1 -Wl,--as-needed
+OBJS = xmpedit.o MainWindow.o MetadataTreeModel.o
+LIBS = $(shell pkg-config gtkmm-2.4 --libs) $(shell pkg-config exiv2 --libs)
+TARGET = xmpedit
 
-OBJS =		xmpedit.o MainWindow.o MetadataTreeModel.o
+$(TARGET): $(OBJS)
+	$(CXX) $(LDFLAGS) -o $(TARGET) $(OBJS) $(LIBS)
 
-LIBS =		$(shell pkg-config gtkmm-2.4 --libs) $(shell pkg-config exiv2 --libs)
+xmpedit.o: xmpedit.cpp MainWindow.h
 
-TARGET =	xmpedit
+MainWindow.o: MainWindow.cpp MainWindow.h MetadataTreeModel.h
 
-$(TARGET):	$(OBJS)
-	$(CXX) -o $(TARGET) $(OBJS) $(LIBS)
+MetadataTreeModel.o: MetadataTreeModel.cpp MetadataTreeModel.h
 
-all:	$(TARGET)
+.PHONY: all
+all: $(TARGET)
 
+.PHONY: clean
 clean:
 	rm -f $(OBJS) $(TARGET)
