@@ -9,10 +9,6 @@ MetadataTreeModel::MetadataTreeModel(const std::string& path) {
 	image->readMetadata();
 	Exiv2::XmpData data = image->xmpData();
 
-	// convert EXIF and IPTC
-	Exiv2::copyExifToXmp(image->exifData(), data);
-	Exiv2::copyIptcToXmp(image->iptcData(), data);
-
 	for (Exiv2::XmpData::const_iterator i = data.begin(); i != data.end(); ++ i) {
 		Row row(*append());
 		Glib::ustring pred(i->groupName());
