@@ -11,15 +11,15 @@
 class MainWindow : public Gtk::Window {
 
 public:
-	MainWindow(const std::string& path);
-	virtual ~MainWindow();
+    MainWindow(const std::string& path);
+    virtual ~MainWindow();
 
 private:
-	Gtk::VBox vbox;
-	Gtk::Image image_preview;
+    Gtk::VBox vbox;
+    Gtk::Image image_preview;
     Gtk::ScrolledWindow scrolled;
-	Glib::RefPtr<MetadataTreeModel> model;
-	Gtk::TreeView tree_view;
+    Glib::RefPtr<MetadataTreeModel> model;
+    Gtk::TreeView tree_view;
 
 };
 
