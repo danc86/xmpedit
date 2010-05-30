@@ -3,6 +3,7 @@
 #define MAINWINDOW_H_
 
 #include "MetadataTreeModel.h"
+#include "MetadataTreeView.h"
 #include <gtkmm/treeview.h>
 #include <gtkmm/scrolledwindow.h>
 #include <gtkmm/box.h>
@@ -19,7 +20,7 @@ private:
     Gtk::Image image_preview;
     Gtk::ScrolledWindow scrolled;
     Glib::RefPtr<MetadataTreeModel> model;
-    Gtk::TreeView tree_view;
+    MetadataTreeView tree_view;
 
 };
 

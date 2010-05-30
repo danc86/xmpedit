@@ -11,15 +11,13 @@ MetadataTreeModel::MetadataTreeModel(const std::string& path) {
 
     for (Exiv2::XmpData::const_iterator i = data.begin(); i != data.end(); ++ i) {
         Row row(*append());
-        Glib::ustring pred(i->groupName());
-        pred += ":";
-        pred += i->tagName();
-        row[columns.pred_column] = pred;
-        Glib::ustring value(i->value().toString());
-        value += " [";
-        value += i->typeName();
-        value += "]";
-        row[columns.value_column] = value;
+        Glib::ustring markup("<b>Unknown property (");
+        markup += i->groupName();
+        markup += ":";
+        markup += i->tagName();
+        markup += ")</b>\n";
+        markup += i->value().toString(); // XXX escape
+        row[columns.markup_column] = markup;
     }
 }
 

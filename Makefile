@@ -1,6 +1,6 @@
 CXXFLAGS = -O2 -g -Wall -fmessage-length=0 $(shell pkg-config giomm-2.4 --cflags) $(shell pkg-config gtkmm-2.4 --cflags) $(shell pkg-config exiv2 --cflags)
 LDFLAGS = -Wl,-O1 -Wl,--as-needed
-OBJS = xmpedit.o MainWindow.o MetadataTreeModel.o
+OBJS = xmpedit.o MainWindow.o MetadataTreeModel.o MetadataTreeView.o
 LIBS = $(shell pkg-config giomm-2.4 --libs) $(shell pkg-config gtkmm-2.4 --libs) $(shell pkg-config exiv2 --libs)
 TARGET = xmpedit
 
@@ -9,9 +9,11 @@ $(TARGET): $(OBJS)
 
 xmpedit.o: xmpedit.cpp MainWindow.h
 
-MainWindow.o: MainWindow.cpp MainWindow.h MetadataTreeModel.h
+MainWindow.o: MainWindow.cpp MainWindow.h MetadataTreeModel.h MetadataTreeView.h
 
 MetadataTreeModel.o: MetadataTreeModel.cpp MetadataTreeModel.h
+
+MetadataTreeView.o: MetadataTreeView.cpp MetadataTreeView.h MetadataTreeModel.h
 
 .PHONY: all
 all: $(TARGET)

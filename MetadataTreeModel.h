@@ -15,11 +15,9 @@ public:
 
 private:
     struct ModelColumns : public Gtk::TreeModel::ColumnRecord {
-        Gtk::TreeModelColumn<Glib::ustring> pred_column;
-        Gtk::TreeModelColumn<Glib::ustring> value_column;
+        Gtk::TreeModelColumn<Glib::ustring> markup_column; // XXX lame?
         ModelColumns(void) {
-            add(pred_column);
-            add(value_column);
+            add(markup_column);
         }
     };
 
