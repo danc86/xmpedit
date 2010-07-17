@@ -3,19 +3,14 @@ VERSION = '0.1'
 top = '.'
 out = 'target'
 
-def set_options(opt):
-    opt.tool_options('compiler_cxx')
+def options(opt):
+    opt.tool_options('compiler_cc')
+    opt.tool_options('vala')
 
 def configure(conf):
-    conf.check_tool('compiler_cxx')
-    conf.check_cfg(package='gtkmm-2.4', args='--cflags --libs', mandatory=True)
-    conf.check_cfg(package='giomm-2.4', args='--cflags --libs', mandatory=True)
-    conf.check_cfg(package='exiv2', args='--cflags --libs', mandatory=True)
+    conf.check_tool('compiler_cc vala')
+    conf.check_cfg(package='gtk+-2.0', atleast_version='2.18.0', args='--cflags --libs', mandatory=True)
+    conf.check_cfg(package='gexiv2', args='--cflags --libs', mandatory=True)
 
 def build(bld):
-    bld(
-        features        = ['cxx', 'cprogram'],
-        source          = bld.path.ant_glob('src/*.cpp'),
-        target          = 'xmpedit',
-        uselib          = ['GTKMM-2.4', 'GIOMM-2.4', 'EXIV2']
-    )
+    bld.add_subdirs('src')
