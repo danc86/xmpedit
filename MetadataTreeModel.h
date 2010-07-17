@@ -2,16 +2,18 @@
 #ifndef METADATATREEMODEL_H_
 #define METADATATREEMODEL_H_
 
-#include <string>
+#include <vector>
 #include <gtkmm/liststore.h>
-#include <exiv2/image.hpp>
+#include "PropertyEditor.h"
 
 class MetadataTreeModel : public Gtk::ListStore {
 
+private:
+	MetadataTreeModel(const std::vector<boost::shared_ptr<PropertyEditor> >& property_editors);
+
 public:
-    MetadataTreeModel(const std::string& path);
     virtual ~MetadataTreeModel(void);
-    static Glib::RefPtr<MetadataTreeModel> create(const std::string& path);
+    static Glib::RefPtr<MetadataTreeModel> create(const std::vector<boost::shared_ptr<PropertyEditor> >& property_editors);
 
 private:
     struct ModelColumns : public Gtk::TreeModel::ColumnRecord {
