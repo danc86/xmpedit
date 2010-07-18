@@ -1,7 +1,7 @@
 bld(
-    features        = ['cc', 'cprogram'],
+    features        = ['c', 'cprogram'],
     source          = bld.path.ant_glob('*.vala'),
     target          = 'xmpedit',
-    packages        = ['gtk+-2.0', 'gexiv2'],
-    uselib          = ['GTK+-2.0', 'GEXIV2']
+    packages        = ['gtk+-2.0', 'gexiv2', 'gee-1.0'],
+    uselib          = ['GTK+-2.0', 'GEXIV2', 'GEE-1.0']
 )

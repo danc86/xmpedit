@@ -10,6 +10,7 @@ def options(opt):
 def configure(conf):
     conf.check_tool('compiler_cc vala')
     conf.check_cfg(package='gtk+-2.0', atleast_version='2.18.0', args='--cflags --libs', mandatory=True)
+    conf.check_cfg(package='gee-1.0', args='--cflags --libs', mandatory=True)
     conf.check_cfg(package='gexiv2', args='--cflags --libs', mandatory=True)
 
 def build(bld):

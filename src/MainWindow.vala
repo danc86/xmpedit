@@ -3,27 +3,21 @@ namespace XmpEdit {
 
 public class MainWindow : Gtk.Window {
 
-    private GExiv2.Metadata image_metadata;
-    private PropertyEditor[] property_editors;
+    private ImageMetadata image_metadata;
     private Gtk.Table table;
     private Gtk.Image image_preview;
     private Gtk.ScrolledWindow tree_view_scrolled;
-    private MetadataTreeModel model;
     private MetadataTreeView tree_view;
     private Gtk.ScrolledWindow detail_scrolled;
     
     public MainWindow(string path) throws GLib.Error {
         Object(type: Gtk.WindowType.TOPLEVEL);
-        image_metadata = new GExiv2.Metadata();
-        image_metadata.open_path(path);
-        //for (Exiv2::XmpData::iterator i = data.begin(); i != data.end(); ++ i) {
-        //    property_editors.push_back(PropertyEditor::create(*i));
-        //}
+        image_metadata = new ImageMetadata(path);
+        image_metadata.load();
         table = new Gtk.Table(/* rows */ 2, /* cols */ 2, /* homogeneous */ false);
         image_preview = new Gtk.Image.from_pixbuf(new Gdk.Pixbuf.from_file_at_scale(path, 320, 320, /* preserve aspect */ true));
         tree_view_scrolled = new Gtk.ScrolledWindow(null, null);
-        model = new MetadataTreeModel({ });
-        tree_view = new MetadataTreeView(model);
+        tree_view = new MetadataTreeView.connected_to(image_metadata);
         
         title = File.new_for_path(path).get_basename();
         default_width = 640;
