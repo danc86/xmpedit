@@ -125,7 +125,7 @@ public class Graph : Object {
     
     public Graph.from_xml(string xml, string base_uri) throws ParseError {
         this.base_uri = base_uri;
-        Xml.Doc* doc = Xml.Parser.parse_memory(xml, (int) xml.length);
+        Xml.Doc* doc = Xml.Parser.parse_memory(xml, (int) xml.size());
         if (doc == null)
             throw new ParseError.UNPARSEABLE_XML("doc == null");
         try {
@@ -300,11 +300,33 @@ public void test_property_elements_inherit_lang() {
             new PlainLiteral.with_lang("Some stuff.", "en"))));
 }
 
+public void test_unicode() {
+    var g = new Graph.from_xml("""
+            <rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">
+                <rdf:Description rdf:about=""
+                    xmlns:dc="http://purl.org/dc/elements/1.1/"
+                    xml:lang="ru"
+                    dc:title="ночь">
+                    <dc:description>день</dc:description>
+                </rdf:Description>
+            </rdf:RDF>""", "http://example.com/");
+    assert(g.get_statements().size == 2);
+    assert(g.get_statements().contains(new Statement(
+            new URIRef("http://example.com/"),
+            new URIRef("http://purl.org/dc/elements/1.1/title"),
+            new PlainLiteral.with_lang("\xd0\xbd\xd0\xbe\xd1\x87\xd1\x8c", "ru"))));
+    assert(g.get_statements().contains(new Statement(
+            new URIRef("http://example.com/"),
+            new URIRef("http://purl.org/dc/elements/1.1/description"),
+            new PlainLiteral.with_lang("\xd0\xb4\xd0\xb5\xd0\xbd\xd1\x8c", "ru"))));
+}
+
 public void register_tests() {
     Test.add_func("/xmpedit/rdf/test_property_attributes", test_property_attributes);
     Test.add_func("/xmpedit/rdf/test_property_attributes_rdf_type", test_property_attributes_rdf_type);
     Test.add_func("/xmpedit/rdf/test_property_elements", test_property_elements);
     Test.add_func("/xmpedit/rdf/test_property_elements_inherit_lang", test_property_elements_inherit_lang);
+    Test.add_func("/xmpedit/rdf/test_unicode", test_unicode);
 }
 
 #endif
