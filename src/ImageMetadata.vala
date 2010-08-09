@@ -18,7 +18,6 @@ public class PropertyEditor : Object {
 
 public class ImageMetadata : Object {
 
-    private GExiv2.Metadata exiv_metadata;
     public string path { get; construct; }
     public Gee.List<PropertyEditor> properties { get; construct; }
     
@@ -30,12 +29,17 @@ public class ImageMetadata : Object {
     
     construct {
         properties = new Gee.LinkedList<PropertyEditor>();
-        exiv_metadata = new GExiv2.Metadata();
     }
     
     // ugh, for exceptions
     public void load() throws GLib.Error {
+        var exiv_metadata = new GExiv2.Metadata();
         exiv_metadata.open_path(path);
+        string xmp = exiv_metadata.get_xmp_packet();
+        stdout.puts(xmp);
+        var g = new RDF.Graph.from_xml(xmp, File.new_for_path(path).get_uri());
+        foreach (var s in g.get_statements())
+            stdout.puts(@"$s\n");
         foreach (var tag in exiv_metadata.get_xmp_tags()) {
             properties.add(new PropertyEditor(tag, exiv_metadata.get_xmp_tag_string(tag)));
         }
