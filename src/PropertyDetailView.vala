@@ -1,7 +1,7 @@
 
 namespace Xmpedit {
 
-public class PropertyDetailView : Gtk.ScrolledWindow {
+public class PropertyDetailView : Gtk.Alignment {
 
     public MetadataTreeView tree_view { get; construct; }
 
@@ -10,7 +10,6 @@ public class PropertyDetailView : Gtk.ScrolledWindow {
     }
 
     construct {
-        set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC);
         tree_view.cursor_changed.connect(() => {
             Gtk.TreeIter iter;
             tree_view.get_selection().get_selected(null, out iter);
@@ -19,7 +18,7 @@ public class PropertyDetailView : Gtk.ScrolledWindow {
             PropertyEditor pe = (PropertyEditor) value.get_object();
             pe.refresh();
             //remove(child);
-            add_with_viewport(pe);
+            add(pe);
         });
     }
 

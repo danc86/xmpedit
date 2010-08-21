@@ -27,7 +27,7 @@ public class MainWindow : Gtk.Window {
         
         table.attach(image_preview,
                 1, 2, 0, 1,
-                Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND, Gtk.AttachOptions.FILL,
+                Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND, 0,
                 10, 10);
                 
         tree_view_scrolled.add(tree_view);
@@ -39,7 +39,8 @@ public class MainWindow : Gtk.Window {
                 
         table.attach(detail_view,
                 1, 2, 1, 2,
-                Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND, Gtk.AttachOptions.FILL,
+                Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND,
+                Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND,
                 0, 0);
         
         add(table);
