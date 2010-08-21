@@ -4,7 +4,7 @@ namespace XmpEdit {
 public class MetadataTreeModel : Gtk.ListStore {
 
     public MetadataTreeModel() {
-        set_column_types({ typeof(string) });
+        set_column_types({ typeof(string), typeof(PropertyEditor) });
     }
     
     public void populate(ImageMetadata metadata) {
@@ -12,7 +12,8 @@ public class MetadataTreeModel : Gtk.ListStore {
         foreach (var property_editor in metadata.properties) {
             Gtk.TreeIter row;
             append(out row);
-            set_value(row, 0, property_editor.get_list_markup());
+            set_value(row, 0, property_editor.list_markup());
+            set_value(row, 1, property_editor);
         }
     }
 
@@ -37,6 +38,7 @@ public class MetadataTreeView : Gtk.TreeView {
         column.pack_start(cell_renderer, /* expand */ true);
         column.add_attribute(cell_renderer, "markup", 0);
         append_column(column);
+        get_selection().set_mode(Gtk.SelectionMode.BROWSE);
     }
 
 }

@@ -8,7 +8,7 @@ public class MainWindow : Gtk.Window {
     private Gtk.Image image_preview;
     private Gtk.ScrolledWindow tree_view_scrolled;
     private MetadataTreeView tree_view;
-    private Gtk.ScrolledWindow detail_scrolled;
+    private PropertyDetailView detail_view;
     
     public MainWindow(string path) throws GLib.Error {
         Object(type: Gtk.WindowType.TOPLEVEL);
@@ -18,6 +18,7 @@ public class MainWindow : Gtk.Window {
         image_preview = new Gtk.Image.from_pixbuf(new Gdk.Pixbuf.from_file_at_scale(path, 320, 320, /* preserve aspect */ true));
         tree_view_scrolled = new Gtk.ScrolledWindow(null, null);
         tree_view = new MetadataTreeView.connected_to(image_metadata);
+        detail_view = new PropertyDetailView.connected_to(image_metadata, tree_view);
         
         title = File.new_for_path(path).get_basename();
         default_width = 640;
@@ -34,6 +35,11 @@ public class MainWindow : Gtk.Window {
         table.attach(tree_view_scrolled,
                 0, 1, 0, 2,
                 Gtk.AttachOptions.FILL, Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND,
+                0, 0);
+                
+        table.attach(detail_view,
+                1, 2, 1, 2,
+                Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND, Gtk.AttachOptions.FILL,
                 0, 0);
         
         add(table);

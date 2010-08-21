@@ -249,11 +249,11 @@ public class Graph : Object {
         }
     }
     
-    public Gee.Collection<Statement> get_statements() {
-        return statements;
+    public Gee.List<Statement> get_statements() {
+        return statements.read_only_view;
     }
     
-    public Gee.Collection<Statement> find_matching_statements(
+    public Gee.List<Statement> find_matching_statements(
             SubjectNode? subject, URIRef? predicate, Node? object) {
         // XXX naive
         var result = new Gee.ArrayList<Statement>((EqualFunc) Statement.equal);
@@ -264,6 +264,38 @@ public class Graph : Object {
                 result.add(s);
         }
         return result;
+    }
+        
+    public bool has_matching_statement(
+            SubjectNode? subject, URIRef? predicate, Node? object) {
+        // XXX naive
+        foreach (var s in statements) {
+            if ((subject == null || s.subject.equals(subject)) &&
+                    (predicate == null || s.predicate.equals(predicate)) &&
+                    (object == null || s.object.equals(object)))
+                return true;
+        }
+        return false;
+    }
+    
+    public Gee.List<Node> find_objects(SubjectNode subject, URIRef predicate) {
+        // XXX naive
+        var result = new Gee.ArrayList<Node>();
+        foreach (var s in statements) {
+            if ((subject == null || s.subject.equals(subject)) &&
+                    (predicate == null || s.predicate.equals(predicate)))
+                result.add(s.object);
+        }
+        return result;
+    }
+    
+    public Node? find_object(SubjectNode subject, URIRef predicate) {
+        foreach (var s in statements) {
+            if ((subject == null || s.subject.equals(subject)) &&
+                    (predicate == null || s.predicate.equals(predicate)))
+                return s.object;
+        }
+        return null;
     }
     
 }
