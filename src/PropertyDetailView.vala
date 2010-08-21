@@ -10,14 +10,15 @@ public class PropertyDetailView : Gtk.Alignment {
     }
 
     construct {
+        set_padding(0, 10, 10, 10);
         tree_view.cursor_changed.connect(() => {
             Gtk.TreeIter iter;
             tree_view.get_selection().get_selected(null, out iter);
             Value value;
             tree_view.model.get_value(iter, 1, out value);
             PropertyEditor pe = (PropertyEditor) value.get_object();
-            pe.refresh();
-            //remove(child);
+            if (child != null)
+                remove(child);
             add(pe);
         });
     }

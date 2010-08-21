@@ -11,13 +11,15 @@ public interface PropertyEditor : Gtk.Widget {
     public abstract RDF.Graph graph { get; set; }
     public abstract RDF.URIRef subject { get; set; }
     
-    public abstract bool exists_in_graph();
     public abstract string value_summary();
-    public abstract void refresh();
+    public abstract bool populate();
+    
+    public string prop_display_name() {
+        return prop_name.substring(0, 1).up() + prop_name.substring(1);
+    }
 
     public string list_markup() {
-        var display_name = prop_name.substring(0, 1).up() + prop_name.substring(1);
-	    return @"<b>$(display_name)</b>\n$(value_summary())";
+	    return @"<b>$(prop_display_name())</b>\n$(value_summary())";
 	}
 	
 }
@@ -29,43 +31,97 @@ private class Description : Gtk.Table, PropertyEditor {
     public string prop_name { get { return "description"; } }
     public RDF.Graph graph { get; set; }
     public RDF.URIRef subject { get; set; }
+    
+    private Gtk.ScrolledWindow text_scrolled = new Gtk.ScrolledWindow(null, null);
     private Gtk.TextView text_view = new Gtk.TextView();
+    private Gtk.Entry lang_entry = new Gtk.Entry(); // XXX make a combo
+    private string? value;
+    private string? lang;
     
     construct {
-        n_rows = 1;
-        n_columns = 1;
+        n_rows = 2;
+        n_columns = 2;
         homogeneous = false;
-        attach(text_view,
+        
+        var label = new Gtk.Label(prop_display_name());
+        label.xalign = 0;
+        attach(label,
                 0, 1, 0, 1,
+                Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND, 0,
+                0, 0);
+        set_row_spacing(0, 4);
+        
+        var lang_hbox = new Gtk.HBox(/* homogeneous */ false, /* spacing */ 4);
+        lang_entry.width_chars = 8;
+        var lang_label = new Gtk.Label("Language:");
+        lang_label.xalign = 1;
+        lang_label.mnemonic_widget = lang_entry;
+        lang_hbox.add(lang_label);
+        lang_hbox.add(lang_entry);
+        attach(lang_hbox,
+                1, 2, 0, 1,
+                0, 0,
+                0, 0);
+        set_col_spacing(0, 10);
+
+        text_view.wrap_mode = Gtk.WrapMode.WORD;
+        
+        text_scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC);
+        text_scrolled.shadow_type = Gtk.ShadowType.ETCHED_IN;
+        text_scrolled.add(text_view);
+        attach(text_scrolled,
+                0, 2, 1, 2,
                 Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND, Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND,
-                10, 10);
+                0, 0);
     }
 
-    public bool exists_in_graph() {
-        return graph.find_objects(subject, DC_DESCRIPTION).size > 0;
-    }
-    
     public string value_summary() {
+        if (value == null)
+            return "<i>not set</i>";
+        return value;
+    }
+
+    private RDF.PlainLiteral? find_literal() {
         var description = graph.find_object(subject, DC_DESCRIPTION);
         if (description == null)
-            return "<i>(not set)</i>";
+            return null;
         if (description is RDF.SubjectNode) {
             var node = (RDF.SubjectNode) description;
             if (graph.has_matching_statement(node,
                     new RDF.URIRef(RDF.RDF_NS + "type"),
                     new RDF.URIRef(RDF.RDF_NS + "Alt"))) {
                 description = select_alternative(node, graph);
+                if (description == null) {
+                    warning("found rdf:Alt with no alternatives for %s", prop_name);
+                    return null;
+                }
             }
         }
         if (!(description is RDF.PlainLiteral)) {
-            return "<i>(non-literal node)</i>";
+            warning("found non-literal node for %s", prop_name);
+            return null;
         }
-        var literal = (RDF.PlainLiteral) description;
-        return literal.lexical_value;
+        return (RDF.PlainLiteral) description;
     }
     
-    public void refresh() {
-        text_view.buffer.text = value_summary();
+    public bool populate() {
+        var literal = find_literal();
+        if (literal == null) {
+            value = null;
+            lang = null;
+            text_view.buffer.text = "";
+            lang_entry.text = "";
+            return false;
+        } else {
+            value = literal.lexical_value;
+            lang = literal.lang;
+            text_view.buffer.text = value;
+            if (lang == null)
+                lang_entry.text = "";
+            else
+                lang_entry.text = lang;
+            return true;
+        }
     }
 
 }
@@ -122,7 +178,7 @@ public class ImageMetadata : Object {
             var pe = (PropertyEditor) Object.new(type);
             pe.graph = g;
             pe.subject = subject;
-            if (pe.exists_in_graph())
+            if (pe.populate())
                 properties.add(pe);
         }
         //foreach (var tag in exiv_metadata.get_xmp_tags()) {
