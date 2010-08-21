@@ -1,5 +1,5 @@
 
-namespace XmpEdit {
+namespace Xmpedit {
 
 public class MainWindow : Gtk.Window {
 
