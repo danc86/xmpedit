@@ -20,7 +20,7 @@ def files_under(path):
     return result
 
 def compile_vala(sources, target, pkgs=[], defs=[]):
-    invoke(['valac', '-g', '-d', 'target', '-o', target] +
+    invoke(['valac', '-g', '--save-temps', '-d', 'target', '-o', target] +
            ['--pkg=%s' % pkg for pkg in pkgs] +
            ['--define=%s' % define for define in defs] +
            sources)
