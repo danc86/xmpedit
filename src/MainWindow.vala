@@ -45,6 +45,10 @@ public class MainWindow : Gtk.Window {
         
         add(table);
         show_all();
+        
+        destroy.connect(() => {
+            image_metadata.save();
+        });
     }
 
 }

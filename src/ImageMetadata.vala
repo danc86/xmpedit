@@ -8,11 +8,11 @@ public interface PropertyEditor : Gtk.Widget {
     }
 
     public abstract string prop_name { get; }
-    public abstract RDF.Graph graph { get; set; }
     public abstract RDF.URIRef subject { get; set; }
     
     public abstract string value_summary();
-    public abstract bool populate();
+    public abstract bool populate(RDF.Graph graph);
+    public abstract Gee.Collection<RDF.Statement> as_rdf();
     
     public string prop_display_name() {
         return prop_name.substring(0, 1).up() + prop_name.substring(1);
@@ -29,14 +29,11 @@ private class Description : Gtk.Table, PropertyEditor {
     private static RDF.URIRef DC_DESCRIPTION = new RDF.URIRef("http://purl.org/dc/elements/1.1/description");
     
     public string prop_name { get { return "description"; } }
-    public RDF.Graph graph { get; set; }
     public RDF.URIRef subject { get; set; }
-    
+
     private Gtk.ScrolledWindow text_scrolled = new Gtk.ScrolledWindow(null, null);
     private Gtk.TextView text_view = new Gtk.TextView();
     private Gtk.Entry lang_entry = new Gtk.Entry(); // XXX make a combo
-    private string? value;
-    private string? lang;
     
     construct {
         n_rows = 2;
@@ -76,12 +73,11 @@ private class Description : Gtk.Table, PropertyEditor {
     }
 
     public string value_summary() {
-        if (value == null)
-            return "<i>not set</i>";
-        return value;
+        string value = text_view.buffer.text;
+        return (value.size() > 0 ? value : "<i>not set</i>");
     }
 
-    private RDF.PlainLiteral? find_literal() {
+    private RDF.PlainLiteral? find_literal(RDF.Graph graph) {
         var description = graph.find_object(subject, DC_DESCRIPTION);
         if (description == null)
             return null;
@@ -104,24 +100,32 @@ private class Description : Gtk.Table, PropertyEditor {
         return (RDF.PlainLiteral) description;
     }
     
-    public bool populate() {
-        var literal = find_literal();
+    public bool populate(RDF.Graph graph) {
+        var literal = find_literal(graph);
         if (literal == null) {
-            value = null;
-            lang = null;
             text_view.buffer.text = "";
             lang_entry.text = "";
             return false;
         } else {
-            value = literal.lexical_value;
-            lang = literal.lang;
-            text_view.buffer.text = value;
-            if (lang == null)
-                lang_entry.text = "";
-            else
-                lang_entry.text = lang;
+            text_view.buffer.text = literal.lexical_value;
+            lang_entry.text = (literal.lang != null ? literal.lang : "");
             return true;
         }
+    }
+    
+    public Gee.Collection<RDF.Statement> as_rdf() {
+        var result = new Gee.ArrayList<RDF.Statement>();
+        string value = text_view.buffer.text;
+        string lang = lang_entry.text;
+        if (value.size() > 0) {
+            RDF.PlainLiteral object;
+            if (lang.size() > 0)
+                object = new RDF.PlainLiteral.with_lang(value, lang);
+            else
+                object = new RDF.PlainLiteral(value);
+            result.add(new RDF.Statement(subject, DC_DESCRIPTION, object));
+        }
+        return result;
     }
 
 }
@@ -163,7 +167,6 @@ public class ImageMetadata : Object {
         properties = new Gee.LinkedList<PropertyEditor>();
     }
     
-    // ugh, for exceptions
     public void load() throws GLib.Error {
         var exiv_metadata = new GExiv2.Metadata();
         exiv_metadata.open_path(path);
@@ -176,9 +179,8 @@ public class ImageMetadata : Object {
         var subject = new RDF.URIRef(base_uri);
         foreach (var type in PropertyEditor.all_types()) {
             var pe = (PropertyEditor) Object.new(type);
-            pe.graph = g;
             pe.subject = subject;
-            if (pe.populate())
+            if (pe.populate(g))
                 properties.add(pe);
         }
         //foreach (var tag in exiv_metadata.get_xmp_tags()) {
@@ -186,7 +188,19 @@ public class ImageMetadata : Object {
         //}
         updated();
     }
-
+    
+    public void save() {
+        var g = new RDF.Graph();
+        foreach (var pe in properties) {
+            foreach (var s in pe.as_rdf()) {
+                g.insert(s);
+            }
+        }
+        foreach (var s in g.get_statements())
+            stdout.puts(@"$s\n");
+        // XXX actually write it out
+    }
+    
 }
 
 }

@@ -249,6 +249,11 @@ public class Graph : Object {
         }
     }
     
+    public void insert(Statement statement) {
+        if (!has_matching_statement(statement.subject, statement.predicate, statement.object))
+            statements.add(statement);
+    }
+    
     public Gee.List<Statement> get_statements() {
         return statements.read_only_view;
     }
@@ -276,6 +281,19 @@ public class Graph : Object {
                 return true;
         }
         return false;
+    }
+    
+    public void remove_matching_statements(
+            SubjectNode? subject, URIRef? predicate, Node? object) {
+        var it = statements.iterator();
+        while (it.has_next()) {
+            it.next();
+            var s = it.get();
+            if ((subject == null || s.subject.equals(subject)) &&
+                    (predicate == null || s.predicate.equals(predicate)) &&
+                    (object == null || s.object.equals(object)))
+                it.remove();
+        }
     }
     
     public Gee.List<Node> find_objects(SubjectNode subject, URIRef predicate) {
