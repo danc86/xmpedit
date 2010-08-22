@@ -8,11 +8,12 @@ public interface PropertyEditor : Gtk.Widget {
     }
 
     public abstract string prop_name { get; }
+    public abstract RDF.Graph graph { get; set; }
     public abstract RDF.URIRef subject { get; set; }
     
     public abstract string value_summary();
-    public abstract bool populate(RDF.Graph graph);
-    public abstract Gee.Collection<RDF.Statement> as_rdf();
+    public abstract void load();
+    public abstract void commit();
     
     public string prop_display_name() {
         return prop_name.substring(0, 1).up() + prop_name.substring(1);
@@ -29,6 +30,7 @@ private class Description : Gtk.Table, PropertyEditor {
     private static RDF.URIRef DC_DESCRIPTION = new RDF.URIRef("http://purl.org/dc/elements/1.1/description");
     
     public string prop_name { get { return "description"; } }
+    public RDF.Graph graph { get; set; }
     public RDF.URIRef subject { get; set; }
 
     private Gtk.ScrolledWindow text_scrolled = new Gtk.ScrolledWindow(null, null);
@@ -73,11 +75,11 @@ private class Description : Gtk.Table, PropertyEditor {
     }
 
     public string value_summary() {
-        string value = text_view.buffer.text;
-        return (value.size() > 0 ? value : "<i>not set</i>");
+        var literal = find_literal();
+        return (literal != null ? literal.lexical_value : "<i>not set</i>");
     }
 
-    private RDF.PlainLiteral? find_literal(RDF.Graph graph) {
+    private RDF.PlainLiteral? find_literal() {
         var description = graph.find_object(subject, DC_DESCRIPTION);
         if (description == null)
             return null;
@@ -100,21 +102,21 @@ private class Description : Gtk.Table, PropertyEditor {
         return (RDF.PlainLiteral) description;
     }
     
-    public bool populate(RDF.Graph graph) {
-        var literal = find_literal(graph);
+    // XXX use signals for these somehow???
+    
+    public void load() {
+        var literal = find_literal();
         if (literal == null) {
             text_view.buffer.text = "";
             lang_entry.text = "";
-            return false;
         } else {
             text_view.buffer.text = literal.lexical_value;
             lang_entry.text = (literal.lang != null ? literal.lang : "");
-            return true;
         }
     }
     
-    public Gee.Collection<RDF.Statement> as_rdf() {
-        var result = new Gee.ArrayList<RDF.Statement>();
+    public void commit() {
+        graph.remove_matching_statements(subject, DC_DESCRIPTION, null);
         string value = text_view.buffer.text;
         string lang = lang_entry.text;
         if (value.size() > 0) {
@@ -123,9 +125,8 @@ private class Description : Gtk.Table, PropertyEditor {
                 object = new RDF.PlainLiteral.with_lang(value, lang);
             else
                 object = new RDF.PlainLiteral(value);
-            result.add(new RDF.Statement(subject, DC_DESCRIPTION, object));
+            graph.insert(new RDF.Statement(subject, DC_DESCRIPTION, object));
         }
-        return result;
     }
 
 }
@@ -152,10 +153,12 @@ private string get_preferred_lang() {
     return (lang != null ? lang.substring(0, 2) : "en");
 }
 
-public class ImageMetadata : Object {
+public class ImageMetadata : Object, Gtk.TreeModel {
 
     public string path { get; construct; }
     public Gee.List<PropertyEditor> properties { get; construct; }
+    private RDF.Graph graph;
+    private RDF.URIRef subject;
     
     public signal void updated();
     
@@ -173,15 +176,15 @@ public class ImageMetadata : Object {
         string xmp = exiv_metadata.get_xmp_packet();
         stdout.puts(xmp);
         var base_uri = File.new_for_path(path).get_uri();
-        var g = new RDF.Graph.from_xml(xmp, base_uri);
-        foreach (var s in g.get_statements())
+        graph = new RDF.Graph.from_xml(xmp, base_uri);
+        foreach (var s in graph.get_statements())
             stdout.puts(@"$s\n");
-        var subject = new RDF.URIRef(base_uri);
+        subject = new RDF.URIRef(base_uri);
         foreach (var type in PropertyEditor.all_types()) {
             var pe = (PropertyEditor) Object.new(type);
+            pe.graph = graph;
             pe.subject = subject;
-            if (pe.populate(g))
-                properties.add(pe);
+            properties.add(pe);
         }
         //foreach (var tag in exiv_metadata.get_xmp_tags()) {
         //    properties.add(new PropertyEditor(tag, exiv_metadata.get_xmp_tag_string(tag)));
@@ -190,15 +193,103 @@ public class ImageMetadata : Object {
     }
     
     public void save() {
-        var g = new RDF.Graph();
-        foreach (var pe in properties) {
-            foreach (var s in pe.as_rdf()) {
-                g.insert(s);
-            }
-        }
-        foreach (var s in g.get_statements())
+        foreach (var s in graph.get_statements())
             stdout.puts(@"$s\n");
         // XXX actually write it out
+        // XXX gc unreachable nodes in the graph
+    }
+    
+    /****** TREEMODEL IMPLEMENTATION STUFF **********/
+    
+    // XXX use custom cellrenderer instead of having a string column
+    
+    private int stamp() {
+        return (int) this;
+    }
+    
+    public Type get_column_type(int column) {
+        return_if_fail(column == 0 || column == 1);
+        return column == 0 ? typeof(string) : typeof(PropertyEditor);
+    }
+    
+    public int get_n_columns() {
+        return 2;
+    }
+    
+    public Gtk.TreeModelFlags get_flags() {
+        return Gtk.TreeModelFlags.LIST_ONLY;
+    }
+    
+    public bool get_iter(out Gtk.TreeIter iter, Gtk.TreePath path) {
+        if (path.get_depth() > 1) return false;
+        var index = path.get_indices()[0];
+        if (index > properties.size - 1) return false;
+        iter = { stamp(), (void*) properties[index], (void*) index, null };
+        return true;
+    }
+
+    public Gtk.TreePath get_path(Gtk.TreeIter iter) {
+        return_if_fail(iter.stamp == stamp());
+        return new Gtk.TreePath.from_indices((int) iter.user_data2);
+    }
+    
+    public void get_value(Gtk.TreeIter iter, int column, out Value value) {
+        return_if_fail(iter.stamp == stamp());
+        return_if_fail(column == 0 || column == 1);
+        var pe = (PropertyEditor) iter.user_data;
+        if (column == 0) {
+            value = Value(typeof(string));
+            value.take_string(pe.list_markup()); // XXX
+        } else {
+            value = Value(typeof(PropertyEditor));
+            value.set_object(pe);
+        }
+    }
+    
+    public bool iter_children(out Gtk.TreeIter iter, Gtk.TreeIter? parent) {
+        if (parent == null) {
+            iter = { stamp(), (void*) properties[0], (void*) 0, null };
+            return true;
+        }
+        return false;
+    }
+    
+    public bool iter_has_child(Gtk.TreeIter iter) {
+        return false;
+    }
+    
+    public int iter_n_children(Gtk.TreeIter? iter) {
+        if (iter == null)
+            return properties.size;
+        return 0;
+    }
+    
+    public bool iter_next(ref Gtk.TreeIter iter) {
+        return_if_fail(iter.stamp == stamp());
+        var index = (int) iter.user_data2;
+        if (index < properties.size - 1) {
+            iter.user_data2 = (void*) index + 1;
+            return true;
+        }
+        return false;
+    }
+    
+    public bool iter_nth_child(out Gtk.TreeIter iter, Gtk.TreeIter? parent, int n) {
+        if (parent == null && n < properties.size - 1) {
+            iter = { stamp(), (void*) properties[n], (void*) n, null };
+            return true;
+        }
+        return false;
+    }
+    
+    public bool iter_parent(out Gtk.TreeIter iter, Gtk.TreeIter child) {
+        return false;
+    }
+    
+    public void ref_node(Gtk.TreeIter iter) {
+    }
+    
+    public void unref_node(Gtk.TreeIter iter) {
     }
     
 }
