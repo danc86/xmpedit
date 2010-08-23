@@ -15,7 +15,7 @@ public class PropertyDetailView : Gtk.Alignment {
             Gtk.TreeIter iter;
             tree_view.get_selection().get_selected(null, out iter);
             Value value;
-            tree_view.model.get_value(iter, 1, out value);
+            tree_view.model.get_value(iter, 0, out value);
             PropertyEditor pe = (PropertyEditor) value.get_object();
             if (child != null) {
                 ((PropertyEditor) child).commit();

@@ -208,15 +208,13 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     
     /****** TREEMODEL IMPLEMENTATION STUFF **********/
     
-    // XXX use custom cellrenderer instead of having a string column
-    
     public Type get_column_type(int column) {
-        return_if_fail(column == 0 || column == 1);
-        return column == 0 ? typeof(string) : typeof(PropertyEditor);
+        return_if_fail(column == 0);
+        return typeof(PropertyEditor);
     }
     
     public int get_n_columns() {
-        return 2;
+        return 1;
     }
     
     public Gtk.TreeModelFlags get_flags() {
@@ -239,15 +237,9 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     
     public void get_value(Gtk.TreeIter iter, int column, out Value value) {
         return_if_fail(iter.stamp == stamp);
-        return_if_fail(column == 0 || column == 1);
-        var pe = (PropertyEditor) iter.user_data;
-        if (column == 0) {
-            value = Value(typeof(string));
-            value.take_string(pe.list_markup()); // XXX
-        } else {
-            value = Value(typeof(PropertyEditor));
-            value.set_object(pe);
-        }
+        return_if_fail(column == 0);
+        value = Value(typeof(PropertyEditor));
+        value.set_object((PropertyEditor) iter.user_data);
     }
     
     public bool iter_children(out Gtk.TreeIter iter, Gtk.TreeIter? parent) {
