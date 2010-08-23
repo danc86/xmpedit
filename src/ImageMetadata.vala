@@ -162,12 +162,19 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     
     public signal void updated();
     
+    // TreeModel stuff
+    private static int last_stamp = 1;
+    private int stamp;
+    
     public ImageMetadata(string path) {
         Object(path: path);
     }
     
     construct {
         properties = new Gee.LinkedList<PropertyEditor>();
+        lock (last_stamp) {
+            stamp = last_stamp ++;
+        }
     }
     
     public void load() throws GLib.Error {
@@ -203,10 +210,6 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     
     // XXX use custom cellrenderer instead of having a string column
     
-    private int stamp() {
-        return (int) this;
-    }
-    
     public Type get_column_type(int column) {
         return_if_fail(column == 0 || column == 1);
         return column == 0 ? typeof(string) : typeof(PropertyEditor);
@@ -224,17 +227,18 @@ public class ImageMetadata : Object, Gtk.TreeModel {
         if (path.get_depth() > 1) return false;
         var index = path.get_indices()[0];
         if (index > properties.size - 1) return false;
-        iter = { stamp(), (void*) properties[index], (void*) index, null };
+        iter = { stamp, (void*) properties[index], null, null };
         return true;
     }
 
     public Gtk.TreePath get_path(Gtk.TreeIter iter) {
-        return_if_fail(iter.stamp == stamp());
-        return new Gtk.TreePath.from_indices((int) iter.user_data2);
+        return_if_fail(iter.stamp == stamp);
+        var pe = (PropertyEditor) iter.user_data;
+        return new Gtk.TreePath.from_indices(properties.index_of(pe));
     }
     
     public void get_value(Gtk.TreeIter iter, int column, out Value value) {
-        return_if_fail(iter.stamp == stamp());
+        return_if_fail(iter.stamp == stamp);
         return_if_fail(column == 0 || column == 1);
         var pe = (PropertyEditor) iter.user_data;
         if (column == 0) {
@@ -248,7 +252,7 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     
     public bool iter_children(out Gtk.TreeIter iter, Gtk.TreeIter? parent) {
         if (parent == null) {
-            iter = { stamp(), (void*) properties[0], (void*) 0, null };
+            iter = { stamp, (void*) properties[0], null, null };
             return true;
         }
         return false;
@@ -265,10 +269,10 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     }
     
     public bool iter_next(ref Gtk.TreeIter iter) {
-        return_if_fail(iter.stamp == stamp());
-        var index = (int) iter.user_data2;
+        return_if_fail(iter.stamp == stamp);
+        var index = properties.index_of((PropertyEditor) iter.user_data);
         if (index < properties.size - 1) {
-            iter.user_data2 = (void*) index + 1;
+            iter.user_data = (void*) properties[index + 1];
             return true;
         }
         return false;
@@ -276,7 +280,7 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     
     public bool iter_nth_child(out Gtk.TreeIter iter, Gtk.TreeIter? parent, int n) {
         if (parent == null && n < properties.size - 1) {
-            iter = { stamp(), (void*) properties[n], (void*) n, null };
+            iter = { stamp, (void*) properties[n], null, null };
             return true;
         }
         return false;
