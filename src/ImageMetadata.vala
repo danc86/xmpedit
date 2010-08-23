@@ -11,9 +11,11 @@ public interface PropertyEditor : Gtk.Widget {
     public abstract RDF.Graph graph { get; set; }
     public abstract RDF.URIRef subject { get; set; }
     
-    public abstract string value_summary();
-    public abstract void load();
-    public abstract void commit();
+    /**
+     * Examine the graph and return a one-line summary of the value found
+     * (or "<i>not set</i>" if no value was found).
+     */
+    protected abstract string value_summary();
     
     public string prop_display_name() {
         return prop_name.substring(0, 1).up() + prop_name.substring(1);
@@ -72,9 +74,12 @@ private class Description : Gtk.Table, PropertyEditor {
                 0, 2, 1, 2,
                 Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND, Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND,
                 0, 0);
+        
+        show.connect(load);
+        hide.connect(commit);
     }
 
-    public string value_summary() {
+    protected string value_summary() {
         var literal = find_literal();
         return (literal != null ? literal.lexical_value : "<i>not set</i>");
     }
@@ -102,9 +107,7 @@ private class Description : Gtk.Table, PropertyEditor {
         return (RDF.PlainLiteral) description;
     }
     
-    // XXX use signals for these somehow???
-    
-    public void load() {
+    private void load() {
         var literal = find_literal();
         if (literal == null) {
             text_view.buffer.text = "";
@@ -115,7 +118,7 @@ private class Description : Gtk.Table, PropertyEditor {
         }
     }
     
-    public void commit() {
+    private void commit() {
         graph.remove_matching_statements(subject, DC_DESCRIPTION, null);
         string value = text_view.buffer.text;
         string lang = lang_entry.text;
