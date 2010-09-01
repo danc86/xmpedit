@@ -19,18 +19,22 @@ def files_under(path):
         result.extend(os.path.join(dirpath, filename) for filename in filenames)
     return result
 
-def compile_vala(sources, target, pkgs=[], defs=[]):
-    invoke(['valac', '-g', '--save-temps', '-d', 'target', '-o', target] +
+def compile_vala(sources, target, pkgs=[], defs=[], vapidirs=[]):
+    invoke(['valac', '--save-temps', '-d', 'target', '-o', target] +
+           ['--Xcc=-Ilib/genx'] + # XXX generalise
            ['--pkg=%s' % pkg for pkg in pkgs] +
            ['--define=%s' % define for define in defs] +
+           ['--vapidir=%s' % vapidir for vapidir in vapidirs] +
            sources)
 
 def main():
-    pkgs = ['gtk+-2.0', 'gee-1.0', 'gexiv2', 'libxml-2.0', 'libsoup-2.4']
-    main_sources = [f for f in files_under('src') if f.endswith('.vala')]
-    compile_vala(sources=main_sources, target='xmpedit', pkgs=pkgs)
+    pkgs = ['gtk+-2.0', 'gee-1.0', 'gexiv2', 'libxml-2.0', 'libsoup-2.4', 'genx']
+    vapidirs = ['vapi']
+    main_sources = [f for f in files_under('src') if f.endswith('.vala') or f.endswith('.c')]
+    lib_sources = [f for f in files_under('lib') if f.endswith('.c')]
+    compile_vala(sources=main_sources + lib_sources, target='xmpedit', pkgs=pkgs, vapidirs=vapidirs, defs=['DEBUG'])
 
-    compile_vala(sources=main_sources, target='xmpedit_test', pkgs=pkgs, defs=['TEST'])
+    compile_vala(sources=main_sources + lib_sources, target='xmpedit_test', pkgs=pkgs, vapidirs=vapidirs, defs=['DEBUG', 'TEST'])
     invoke(['gtester', '--verbose', 'target/xmpedit_test'])
 
 if __name__ == '__main__':

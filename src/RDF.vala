@@ -131,6 +131,16 @@ public class Graph : Object {
         Parser(this, base_uri).parse(xml);
     }
     
+    /**
+     * N.B. not a general RDF writer,
+     * only includes statements reachable from start_node!
+     */
+    public string to_xml(URIRef start_node) {
+        var writer = new Writer(this);
+        writer.write(start_node);
+        return writer.get_xml();
+    }
+    
     public void insert(Statement statement) {
         if (!has_matching_statement(statement.subject, statement.predicate, statement.object))
             statements.add(statement);
@@ -207,6 +217,7 @@ private const string XML_NS = "http://www.w3.org/XML/1998/namespace";
 
 public void register_tests() {
     register_parser_tests();
+    register_writer_tests();
 }
 
 #endif
