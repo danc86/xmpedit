@@ -184,11 +184,18 @@ public class ImageMetadata : Object, Gtk.TreeModel {
         var exiv_metadata = new GExiv2.Metadata();
         exiv_metadata.open_path(path);
         string xmp = exiv_metadata.get_xmp_packet();
-        stdout.puts(xmp);
+#if DEBUG
+        stderr.puts("=== Extracted XMP packet:\n");
+        stderr.puts(xmp);
+        stderr.putc('\n');
+#endif
         var base_uri = File.new_for_path(path).get_uri();
         graph = new RDF.Graph.from_xml(xmp, base_uri);
+#if DEBUG
+        stderr.puts("=== Parsed RDF graph:\n");
         foreach (var s in graph.get_statements())
-            stdout.puts(@"$s\n");
+            stderr.puts(@"$s\n");
+#endif
         subject = new RDF.URIRef(base_uri);
         foreach (var type in PropertyEditor.all_types()) {
             var pe = (PropertyEditor) Object.new(type);
@@ -203,10 +210,14 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     }
     
     public void save() {
+#if DEBUG
+        stderr.puts("=== Final RDF graph:\n");
         foreach (var s in graph.get_statements())
-            stdout.puts(@"$s\n");
+            stderr.puts(@"$s\n");
+        stderr.puts("=== Serialized RDF XML:\n");
+        stderr.puts(graph.to_xml(subject));
+#endif
         // XXX actually write it out
-        // XXX gc unreachable nodes in the graph
     }
     
     /****** TREEMODEL IMPLEMENTATION STUFF **********/
