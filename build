@@ -20,8 +20,9 @@ def files_under(path):
     return result
 
 def compile_vala(sources, target, pkgs=[], defs=[], vapidirs=[]):
-    invoke(['valac', '--save-temps', '-d', 'target', '-o', target] +
-           ['--Xcc=-Ilib/genx'] + # XXX generalise
+    invoke(['valac', '-g', '--save-temps', '-d', 'target', '-o', target] +
+           ['--Xcc=-g', '--Xcc=-Wall', '--Xcc=-O'] +
+           ['--Xcc=-Isrc', '--Xcc=-Ilib/genx'] + # XXX generalise
            ['--pkg=%s' % pkg for pkg in pkgs] +
            ['--define=%s' % define for define in defs] +
            ['--vapidir=%s' % vapidir for vapidir in vapidirs] +

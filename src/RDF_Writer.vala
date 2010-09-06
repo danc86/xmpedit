@@ -20,30 +20,19 @@ private class Writer {
      * only includes statements reachable from start_node!
      */
     public void write(URIRef start_node) {
-        Genx.Status status;
-        status = genx_writer.start_doc(output);
-        assert(status == Genx.Status.SUCCESS);
-        unowned Genx.Namespace rdf_ns = genx_writer.declare_namespace(RDF_NS, "rdf", out status);
-        assert(status == Genx.Status.SUCCESS);
-        unowned Genx.Element rdf_el = genx_writer.declare_element(rdf_ns, "RDF", out status);
-        assert(status == Genx.Status.SUCCESS);
+        genx_writer.start_doc(output);
+        unowned Genx.Namespace rdf_ns = genx_writer.declare_namespace(RDF_NS, "rdf");
+        unowned Genx.Element rdf_el = genx_writer.declare_element(rdf_ns, "RDF");
         
-        rdf_description_el = genx_writer.declare_element(rdf_ns, "Description", out status);
-        assert(status == Genx.Status.SUCCESS);
-        rdf_about_attr = genx_writer.declare_attribute(rdf_ns, "about", out status);
-        assert(status == Genx.Status.SUCCESS);
-        unowned Genx.Namespace xml_ns = genx_writer.declare_namespace(XML_NS, "xml", out status);
-        assert(status == Genx.Status.SUCCESS);
-        xml_lang_attr = genx_writer.declare_attribute(xml_ns, "lang", out status);
-        assert(status == Genx.Status.SUCCESS);
+        rdf_description_el = genx_writer.declare_element(rdf_ns, "Description");
+        rdf_about_attr = genx_writer.declare_attribute(rdf_ns, "about");
+        unowned Genx.Namespace xml_ns = genx_writer.declare_namespace(XML_NS, "xml");
+        xml_lang_attr = genx_writer.declare_attribute(xml_ns, "lang");
         
-        status = rdf_el.start();
-        assert(status == Genx.Status.SUCCESS);
+        rdf_el.start();
         write_resource(start_node);
-        status = genx_writer.end_element();
-        assert(status == Genx.Status.SUCCESS);
-        status = genx_writer.end_doc();
-        assert(status == Genx.Status.SUCCESS);
+        genx_writer.end_element();
+        genx_writer.end_document();
     }
     
     /* for efficiency */
@@ -52,41 +41,31 @@ private class Writer {
     private unowned Genx.Attribute xml_lang_attr;
     
     private void write_resource(URIRef node) {
-        Genx.Status status;
-        status = rdf_description_el.start();
-        assert(status == Genx.Status.SUCCESS);
-        status = rdf_about_attr.add(node.uri);
-        assert(status == Genx.Status.SUCCESS);
+        rdf_description_el.start();
+        rdf_about_attr.add(node.uri);
         foreach (var statement in graph.find_matching_statements(node, null, null)) {
             write_property(statement.predicate, statement.object);
         }
-        status = genx_writer.end_element();
-        assert(status == Genx.Status.SUCCESS);
+        genx_writer.end_element();
     }
     
     private void write_property(URIRef predicate, Node object) {
         unowned Genx.Namespace ns;
         string local_name;
         split_uri(predicate.uri, out ns, out local_name);
-        Genx.Status status;
         unowned Genx.Element property_el; // XXX reuse
-        property_el = genx_writer.declare_element(ns, local_name, out status);
-        assert(status == Genx.Status.SUCCESS);
-        status = property_el.start();
-        assert(status == Genx.Status.SUCCESS);
+        property_el = genx_writer.declare_element(ns, local_name);
+        property_el.start();
         if (object is PlainLiteral) {
             PlainLiteral literal = (PlainLiteral) object;
             if (literal.lang != null) {
-                status = xml_lang_attr.add(literal.lang);
-                assert(status == Genx.Status.SUCCESS);
+                xml_lang_attr.add(literal.lang);
             }
-            status = genx_writer.add_text(literal.lexical_value);
-            assert(status == Genx.Status.SUCCESS);
+            genx_writer.add_text(literal.lexical_value);
         } else {
             assert_not_reached();
         }
-        status = genx_writer.end_element();
-        assert(status == Genx.Status.SUCCESS);
+        genx_writer.end_element();
     }
     
     private void split_uri(string uri,
@@ -94,9 +73,7 @@ private class Writer {
         var last_slash = uri.pointer_to_offset(uri.rchr(-1, '/')); // XXX crude
         var ns_uri = uri.substring(0, last_slash + 1);
         var ns_prefix = is_wellknown_ns(ns_uri);
-        Genx.Status status;
-        ns = genx_writer.declare_namespace(ns_uri, ns_prefix, out status);
-        assert(status == Genx.Status.SUCCESS);
+        ns = genx_writer.declare_namespace(ns_uri, ns_prefix);
         local_name = uri.substring(last_slash + 1);
     }
     

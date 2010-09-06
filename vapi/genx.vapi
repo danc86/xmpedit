@@ -1,4 +1,4 @@
-[CCode (cheader_filename = "genx.h")]
+[CCode (cheader_filename = "genx-glib.h")]
 namespace Genx {
 
     [CCode (cname = "genxStatus", cprefix = "GENX_")]
@@ -33,11 +33,9 @@ namespace Genx {
         [CCode (has_target = 0)]
         public delegate void DeallocCallback(void* user_data, void* data);
         
-        [CCode (cname = "_genx_default_alloc")]
         private static void* default_alloc(void* user_data, int bytes) {
             return GLib.malloc(bytes);
         }
-        [CCode (cname = "_genx_default_dealloc")]
         private static void default_dealloc(void* user_data, void* data) {
             GLib.free(data);
         }
@@ -48,44 +46,32 @@ namespace Genx {
                 DeallocCallback dealloc = default_dealloc,
                 void* user_data = null);
         
-        [CCode (cname = "genxDeclareNamespace")]
-        public unowned Namespace declare_namespace(string uri, string prefix, out Status status);
+        public unowned Namespace declare_namespace(string uri, string prefix);
         
-        [CCode (cname = "genxDeclareElement")]
-        public unowned Element declare_element(Namespace ns, string type, out Status status);
+        public unowned Element declare_element(Namespace ns, string type);
         
-        [CCode (cname = "genxDeclareAttribute")]
-        public unowned Attribute declare_attribute(Namespace ns, string name, out Status status);
+        public unowned Attribute declare_attribute(Namespace ns, string name);
         
-        [CCode (cname = "_genx_start_doc_gstring")]
-        public Status start_doc(GLib.StringBuilder output);
+        [CCode (cname = "genx_writer_start_doc_gstring")]
+        public void start_doc(GLib.StringBuilder output);
         
-        [CCode (cname = "genxEndDocument")]
-        public Status end_doc();
+        public void end_document();
         
-        [CCode (cname = "genxComment")]
-        public Status comment(string text);
+        public void comment(string text);
         
-        [CCode (cname = "genxPI")]
-        public Status pi(string target, string text);
+        public void pi(string target, string text);
         
-        [CCode (cname = "genxStartElementLiteral")]
-        public Status start_element_literal(string xmlns, string type);
+        public void start_element_literal(string xmlns, string type);
         
-        [CCode (cname = "genxAddAttributeLiteral")]
-        public Status add_attribute_literal(string xmlns, string name, string value);
+        public void add_attribute_literal(string xmlns, string name, string value);
         
-        [CCode (cname = "genxUnsetDefaultNamespace")]
-        public Status unset_default_namespace();
+        public void unset_default_namespace();
         
-        [CCode (cname = "genxEndElement")]
-        public Status end_element();
+        public void end_element();
         
-        [CCode (cname = "genxAddText")]
-        public Status add_text(string text);
+        public void add_text(string text);
         
-        [CCode (cname = "genxAddCharacter")]
-        public Status add_character(int character);
+        public void add_character(int character);
     
     }
     
@@ -93,8 +79,7 @@ namespace Genx {
     [CCode (cname = "struct genxNamespace_rec", free_function = "NAMESPACE_HAS_NO_PUBLIC_FREE")]
     public class Namespace {
     
-        [CCode (cname = "genxAddNamespace")]
-        public Status add(string? prefix = null);
+        public void add(string? prefix = null);
     
     }
     
@@ -102,8 +87,7 @@ namespace Genx {
     [CCode (cname = "struct genxElement_rec", free_function = "ELEMENT_HAS_NO_PUBLIC_FREE")]
     public class Element {
     
-        [CCode (cname = "genxStartElement")]
-        public Status start();
+        public void start();
     
     }
         
@@ -111,8 +95,7 @@ namespace Genx {
     [CCode (cname = "struct genxAttribute_rec", free_function = "ATTRIBUTE_HAS_NO_PUBLIC_FREE")]
     public class Attribute {
     
-        [CCode (cname = "genxAddAttribute")]
-        public Status add(string value);
+        public void add(string value);
     
     }
 
