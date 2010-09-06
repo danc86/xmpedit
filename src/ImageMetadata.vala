@@ -223,7 +223,7 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     /****** TREEMODEL IMPLEMENTATION STUFF **********/
     
     public Type get_column_type(int column) {
-        return_if_fail(column == 0);
+        return_val_if_fail(column == 0, 0);
         return typeof(PropertyEditor);
     }
     
@@ -244,7 +244,7 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     }
 
     public Gtk.TreePath get_path(Gtk.TreeIter iter) {
-        return_if_fail(iter.stamp == stamp);
+        return_val_if_fail(iter.stamp == stamp, null);
         var pe = (PropertyEditor) iter.user_data;
         return new Gtk.TreePath.from_indices(properties.index_of(pe));
     }
@@ -275,7 +275,7 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     }
     
     public bool iter_next(ref Gtk.TreeIter iter) {
-        return_if_fail(iter.stamp == stamp);
+        return_val_if_fail(iter.stamp == stamp, false);
         var index = properties.index_of((PropertyEditor) iter.user_data);
         if (index < properties.size - 1) {
             iter.user_data = (void*) properties[index + 1];
