@@ -35,6 +35,7 @@ private class Writer {
         
         rdf_description_el = genx_writer.declare_element(rdf_ns, "Description");
         rdf_about_attr = genx_writer.declare_attribute(rdf_ns, "about");
+        rdf_resource_attr = genx_writer.declare_attribute(rdf_ns, "resource");
         unowned Genx.Namespace xml_ns = genx_writer.declare_namespace(XML_NS, "xml");
         xml_lang_attr = genx_writer.declare_attribute(xml_ns, "lang");
         
@@ -47,6 +48,7 @@ private class Writer {
     /* for efficiency */
     private unowned Genx.Element rdf_description_el;
     private unowned Genx.Attribute rdf_about_attr;
+    private unowned Genx.Attribute rdf_resource_attr;
     private unowned Genx.Attribute xml_lang_attr;
     
     private void write_resource(SubjectNode node, bool is_start = false) {
@@ -75,11 +77,17 @@ private class Writer {
                 xml_lang_attr.add(literal.lang);
             }
             genx_writer.add_text(literal.lexical_value);
-        } else if (object is SubjectNode) {
-            write_resource((SubjectNode) object);
+        } else if (object is URIRef) {
+            URIRef uriref = (URIRef) object;
+            if (graph.has_matching_statement(uriref, null, null)) {
+                write_resource(uriref);
+            } else {
+                rdf_resource_attr.add(uriref.uri);
+            }
+        } else if (object is Blank) {
+            write_resource((Blank) object);
         } else {
             critical(@"Unhandled object type: $(object)");
-            return_if_reached();
         }
         genx_writer.end_element();
     }
@@ -177,6 +185,22 @@ public void test_blank_object() {
         g.to_xml(person));
 }
 
+public void test_leaf_resource_object() {
+    var person = new URIRef("http://example.com/");
+    var foaf_person = new URIRef("http://xmlns.com/foaf/0.1/Person");
+    
+    var g = new Graph();
+    g.insert(new Statement(person, new URIRef(RDF_NS + "type"), foaf_person));
+    assert_equal(
+        """<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">""" +
+            """<rdf:Description rdf:about="">""" +
+                """<rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person">""" +
+                """</rdf:type>""" +
+            """</rdf:Description>""" +
+        """</rdf:RDF>""",
+        g.to_xml(person));
+}
+
 private void assert_equal(string expected, string actual) {
     if (actual != expected) {
         stderr.puts(@"\nActual: [$(actual)]\nExpected: [$(expected)]\n");
@@ -190,6 +214,7 @@ public void register_writer_tests() {
     Test.add_func("/rdf/writer/test_literal_object", WriterTests.test_literal_object);
     Test.add_func("/rdf/writer/test_resource_object", WriterTests.test_resource_object);
     Test.add_func("/rdf/writer/test_blank_object", WriterTests.test_blank_object);
+    Test.add_func("/rdf/writer/test_leaf_resource_object", WriterTests.test_leaf_resource_object);
 }
 
 #endif
