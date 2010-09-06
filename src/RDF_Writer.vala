@@ -3,6 +3,15 @@ namespace RDF {
 
 private class Writer {
 
+    private static Regex local_name_regex;
+    class construct {
+        try {
+            local_name_regex = new Regex(".*?([_a-zA-Z][-_.a-zA-Z0-9]*)$");
+        } catch (RegexError e) {
+            error(@"local_name_regex is broken: $(e.message)");
+        }
+    }
+
     private Graph graph;
     private Genx.Writer genx_writer = new Genx.Writer();
     private StringBuilder output = new StringBuilder();
@@ -30,7 +39,7 @@ private class Writer {
         xml_lang_attr = genx_writer.declare_attribute(xml_ns, "lang");
         
         rdf_el.start();
-        write_resource(start_node);
+        write_resource(start_node, true);
         genx_writer.end_element();
         genx_writer.end_document();
     }
@@ -40,9 +49,13 @@ private class Writer {
     private unowned Genx.Attribute rdf_about_attr;
     private unowned Genx.Attribute xml_lang_attr;
     
-    private void write_resource(URIRef node) {
+    private void write_resource(SubjectNode node, bool is_start = false) {
         rdf_description_el.start();
-        rdf_about_attr.add(node.uri);
+        if (is_start) {
+            rdf_about_attr.add("");
+        } else if (node is URIRef) {
+            rdf_about_attr.add(((URIRef) node).uri);
+        }
         foreach (var statement in graph.find_matching_statements(node, null, null)) {
             write_property(statement.predicate, statement.object);
         }
@@ -62,19 +75,25 @@ private class Writer {
                 xml_lang_attr.add(literal.lang);
             }
             genx_writer.add_text(literal.lexical_value);
+        } else if (object is SubjectNode) {
+            write_resource((SubjectNode) object);
         } else {
-            assert_not_reached();
+            critical(@"Unhandled object type: $(object)");
+            return_if_reached();
         }
         genx_writer.end_element();
     }
     
     private void split_uri(string uri,
             out unowned Genx.Namespace ns, out string local_name) {
-        var last_slash = uri.pointer_to_offset(uri.rchr(-1, '/')); // XXX crude
-        var ns_uri = uri.substring(0, last_slash + 1);
+        MatchInfo match_info;
+        local_name_regex.match(uri, 0, out match_info);
+        if (!match_info.matches())
+            error(@"Cannot match local name part of $(uri)");
+        local_name = match_info.fetch(1);
+        var ns_uri = uri.substring(0, uri.length - local_name.length);
         var ns_prefix = is_wellknown_ns(ns_uri);
         ns = genx_writer.declare_namespace(ns_uri, ns_prefix);
-        local_name = uri.substring(last_slash + 1);
     }
     
     private string? is_wellknown_ns(string ns) {
@@ -85,7 +104,9 @@ private class Writer {
     }
     
     private static string[,] WELL_KNOWN_NAMESPACES = {
-        { "foaf", "http://xmlns.com/foaf/0.1/" }
+        { "foaf", "http://xmlns.com/foaf/0.1/" },
+        { "dc", "http://purl.org/dc/elements/1.1/" },
+        { "Iptc4xmlCore", "http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/" }
     };
 
 }
@@ -94,7 +115,7 @@ private class Writer {
 
 namespace WriterTests {
 
-public void test_literal_property() {
+public void test_literal_object() {
     var person = new URIRef("http://example.com/");
     var foaf_name = new URIRef("http://xmlns.com/foaf/0.1/name");
     var person_name = new PlainLiteral.with_lang("Person", "en");
@@ -103,8 +124,54 @@ public void test_literal_property() {
     g.insert(new Statement(person, foaf_name, person_name));
     assert_equal(
         """<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">""" +
-            """<rdf:Description rdf:about="http://example.com/">""" +
+            """<rdf:Description rdf:about="">""" +
                 """<foaf:name xmlns:foaf="http://xmlns.com/foaf/0.1/" xml:lang="en">Person</foaf:name>""" +
+            """</rdf:Description>""" +
+        """</rdf:RDF>""",
+        g.to_xml(person));
+}
+
+public void test_resource_object() {
+    var person = new URIRef("http://example.com/");
+    var buddy = new URIRef("http://example.com/buddy");
+    var foaf_knows = new URIRef("http://xmlns.com/foaf/0.1/knows");
+    var foaf_name = new URIRef("http://xmlns.com/foaf/0.1/name");
+    var buddy_name = new PlainLiteral("My Buddy");
+    
+    var g = new Graph();
+    g.insert(new Statement(person, foaf_knows, buddy));
+    g.insert(new Statement(buddy, foaf_name, buddy_name));
+    assert_equal(
+        """<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">""" +
+            """<rdf:Description rdf:about="">""" +
+                """<foaf:knows xmlns:foaf="http://xmlns.com/foaf/0.1/">""" +
+                    """<rdf:Description rdf:about="http://example.com/buddy">""" +
+                        """<foaf:name>My Buddy</foaf:name>""" +
+                    """</rdf:Description>""" +
+                """</foaf:knows>""" +
+            """</rdf:Description>""" +
+        """</rdf:RDF>""",
+        g.to_xml(person));
+}
+
+public void test_blank_object() {
+    var person = new URIRef("http://example.com/");
+    var buddy = new Blank();
+    var foaf_knows = new URIRef("http://xmlns.com/foaf/0.1/knows");
+    var foaf_name = new URIRef("http://xmlns.com/foaf/0.1/name");
+    var buddy_name = new PlainLiteral("My Buddy");
+    
+    var g = new Graph();
+    g.insert(new Statement(person, foaf_knows, buddy));
+    g.insert(new Statement(buddy, foaf_name, buddy_name));
+    assert_equal(
+        """<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">""" +
+            """<rdf:Description rdf:about="">""" +
+                """<foaf:knows xmlns:foaf="http://xmlns.com/foaf/0.1/">""" +
+                    """<rdf:Description>""" +
+                        """<foaf:name>My Buddy</foaf:name>""" +
+                    """</rdf:Description>""" +
+                """</foaf:knows>""" +
             """</rdf:Description>""" +
         """</rdf:RDF>""",
         g.to_xml(person));
@@ -120,7 +187,9 @@ private void assert_equal(string expected, string actual) {
 }
 
 public void register_writer_tests() {
-    Test.add_func("/rdf/writer/test_literal_property", WriterTests.test_literal_property);
+    Test.add_func("/rdf/writer/test_literal_object", WriterTests.test_literal_object);
+    Test.add_func("/rdf/writer/test_resource_object", WriterTests.test_resource_object);
+    Test.add_func("/rdf/writer/test_blank_object", WriterTests.test_blank_object);
 }
 
 #endif

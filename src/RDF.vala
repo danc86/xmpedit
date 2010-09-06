@@ -40,7 +40,7 @@ public class Blank : SubjectNode {
     /** This is for informational purposes only! Not a unique id for equality! */
     public string? id { get; construct; }
     
-    public Blank(string? id) {
+    public Blank(string? id = null) {
         Object(id: id);
     }
     
