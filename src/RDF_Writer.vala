@@ -4,7 +4,7 @@ namespace RDF {
 private class Writer {
 
     private static Regex local_name_regex;
-    class construct {
+    static construct {
         try {
             local_name_regex = new Regex(".*?([_a-zA-Z][-_.a-zA-Z0-9]*)$");
         } catch (RegexError e) {

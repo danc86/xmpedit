@@ -115,7 +115,7 @@ public class Statement : Object {
 // XXX naive
 public class Graph : Object {
 
-    class construct {
+    static construct {
         Xml.Parser.init();
     }
 
