@@ -6,6 +6,7 @@ namespace Xmpedit {
 public int main(string[] args) {
     Test.init(ref args);
     RDF.register_tests();
+    Exiv2.Tests.register_tests();
     Test.run();
     return 0;
 }

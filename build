@@ -8,35 +8,95 @@ Because waf, SCons, autotools, and CMake all made me angry.
 import sys
 import os
 import subprocess
+import errno
 
 def invoke(command):
     print(' '.join(command))
     subprocess.check_call(command)
 
-def files_under(path):
+def files_under(*paths):
     result = []
-    for dirpath, dirnames, filenames in os.walk(path):
-        result.extend(os.path.join(dirpath, filename) for filename in filenames)
+    for path in paths:
+        for dirpath, dirnames, filenames in os.walk(path):
+            result.extend(os.path.join(dirpath, filename) for filename in filenames)
     return result
 
-def compile_vala(sources, target, pkgs=[], defs=[], vapidirs=[]):
-    invoke(['valac', '-g', '--save-temps', '-d', 'target', '-o', target] +
-           ['--Xcc=-g', '--Xcc=-Wall', '--Xcc=-O'] +
-           ['--Xcc=-Isrc', '--Xcc=-Ilib/genx'] + # XXX generalise
-           ['--pkg=%s' % pkg for pkg in pkgs] +
-           ['--define=%s' % define for define in defs] +
-           ['--vapidir=%s' % vapidir for vapidir in vapidirs] +
-           sources)
+def ensure_dir(path):
+    if not os.path.isdir(path):
+        os.mkdir(path)
 
-def main():
-    pkgs = ['gtk+-2.0', 'gee-1.0', 'gexiv2', 'libxml-2.0', 'libsoup-2.4', 'genx']
-    vapidirs = ['vapi']
-    main_sources = [f for f in files_under('src') if f.endswith('.vala') or f.endswith('.c')]
-    lib_sources = [f for f in files_under('lib') if f.endswith('.c')]
-    compile_vala(sources=main_sources + lib_sources, target='xmpedit', pkgs=pkgs, vapidirs=vapidirs, defs=['DEBUG'])
+def replace_ext(path, old, new):
+    if not path.endswith(old):
+        raise ValueError('Path %r does not end with %r' % (path, old))
+    return path[:-len(old)] + new
 
-    compile_vala(sources=main_sources + lib_sources, target='xmpedit_test', pkgs=pkgs, vapidirs=vapidirs, defs=['DEBUG', 'TEST'])
-    invoke(['gtester', '--verbose', 'target/xmpedit_test'])
+class Builder(object):
+
+    def __init__(self):
+        self.pkgs = ['gtk+-2.0', 'gee-1.0', 'libxml-2.0', 'libsoup-2.4', 'exiv2']
+        self.vala_sources = [f for f in files_under('src', 'lib') if f.endswith('.vala')]
+        self.vala_pkgs = self.pkgs + ['genx']
+        self.vala_vapidirs = ['vapi']
+        self.vala_flags = ['-g']
+        self.c_sources = [f for f in files_under('src', 'lib') if f.endswith('.c')]
+        self.c_flags = ['-g', '-Wall', '-Wno-pointer-sign', '-O']
+        self.c_includes = ['src', 'lib/genx']
+        self.cpp_sources = [f for f in files_under('src', 'lib') if f.endswith('.cpp')]
+        self.cpp_flags = ['-g', '-Wall', '-O']
+        self.cpp_includes = self.c_includes
+        self.objects = []
+        self.ld_flags = []
+        for pkg in self.pkgs:
+            cflags = subprocess.check_output(['pkg-config', '--cflags', pkg]).decode('ascii').split()
+            self.c_flags.extend(cflags)
+            self.cpp_flags.extend(cflags)
+            self.ld_flags.extend(subprocess.check_output(['pkg-config', '--libs', pkg]).decode('ascii').split())
+    
+    def compile(self):
+        self.compile_vala(defs=['DEBUG'])
+        self.compile_c()
+        self.compile_cpp()
+        self.link(target='xmpedit')
+    
+    def test(self):
+        self.compile_vala(defs=['DEBUG', 'TEST'])
+        self.compile_c()
+        self.compile_cpp()
+        self.link(target='xmpedit_test')
+        invoke(['gtester', '--verbose', 'target/xmpedit_test'])
+
+    def compile_vala(self, defs=[]):
+        invoke(['valac', '-C', '-d', 'target/valac'] +
+               self.vala_flags +
+               ['--pkg=%s' % pkg for pkg in self.vala_pkgs] +
+               ['--define=%s' % define for define in defs] +
+               ['--vapidir=%s' % vapidir for vapidir in self.vala_vapidirs] +
+               self.vala_sources)
+        self.c_sources.extend(os.path.join('target', 'valac', replace_ext(source, '.vala', '.c'))
+                for source in self.vala_sources)
+     
+    def compile_c(self):
+        ensure_dir(os.path.join('target', 'cc'))
+        for source in self.c_sources:
+            out = os.path.join('target', 'cc', replace_ext(os.path.basename(source), '.c', '.o'))
+            invoke(['gcc'] + self.c_flags +
+                   ['-I%s' % inc for inc in self.c_includes] +
+                   ['-c', source, '-o', out])
+            self.objects.append(out)
+     
+    def compile_cpp(self):
+        ensure_dir(os.path.join('target', 'cc'))
+        for source in self.cpp_sources:
+            out = os.path.join('target', 'cc', replace_ext(os.path.basename(source), '.cpp', '.o'))
+            invoke(['g++'] + self.cpp_flags +
+                   ['-I%s' % inc for inc in self.cpp_includes] +
+                   ['-c', source, '-o', out])
+            self.objects.append(out)
+    
+    def link(self, target):
+        invoke(['gcc'] + self.ld_flags + self.objects +
+               ['-o', os.path.join('target', target)])
 
 if __name__ == '__main__':
-    main()
+    Builder().compile()
+    Builder().test()

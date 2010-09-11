@@ -160,6 +160,8 @@ public class ImageMetadata : Object, Gtk.TreeModel {
 
     public string path { get; construct; }
     public Gee.List<PropertyEditor> properties { get; construct; }
+    private Exiv2.Image image;
+    private size_t xmp_packet_size;
     private RDF.Graph graph;
     private RDF.URIRef subject;
     
@@ -180,10 +182,12 @@ public class ImageMetadata : Object, Gtk.TreeModel {
         }
     }
     
-    public void load() throws GLib.Error {
-        var exiv_metadata = new GExiv2.Metadata();
-        exiv_metadata.open_path(path);
-        string xmp = exiv_metadata.get_xmp_packet();
+    public void load() {
+        return_if_fail(image == null); // only call this once
+        image = new Exiv2.Image.from_path(path);
+        image.read_metadata();
+        unowned string xmp = image.xmp_packet;
+        xmp_packet_size = xmp.size();
 #if DEBUG
         stderr.puts("=== Extracted XMP packet:\n");
         stderr.puts(xmp);
@@ -210,14 +214,32 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     }
     
     public void save() {
+        return_if_fail(image != null); // only call after successful loading
+        // XXX shouldn't write if not dirty!
 #if DEBUG
         stderr.puts("=== Final RDF graph:\n");
         foreach (var s in graph.get_statements())
             stderr.puts(@"$s\n");
-        stderr.puts("=== Serialized RDF XML:\n");
-        stderr.puts(graph.to_xml(subject));
 #endif
-        // XXX actually write it out
+        var xml = new StringBuilder.sized(xmp_packet_size);
+        xml.append("<?xpacket begin=\"\xef\xbb\xbf\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>" +
+                """<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmpedit 0.0-dev">""");
+        xml.append(graph.to_xml(subject));
+        var new_size = xml.str.size() + 12; // plus </x:xmpmeta>
+        size_t padding;
+        if (new_size <= xmp_packet_size)
+            padding = xmp_packet_size - new_size;
+        else
+            padding = new_size + 1024;
+        for (size_t i = 0; i < padding; i ++)
+            xml.append_c(' ');
+        xml.append("""</x:xmpmeta>""");
+#if DEBUG
+        stderr.puts("=== Serialized XMP packet:\n");
+        stderr.puts(xml.str);
+#endif
+        image.xmp_packet = xml.str;
+        image.write_metadata();
     }
     
     /****** TREEMODEL IMPLEMENTATION STUFF **********/
