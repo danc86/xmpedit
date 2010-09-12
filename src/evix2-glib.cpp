@@ -33,6 +33,11 @@ static void exiv2_image_dispose(GObject *object) {
 
 static void exiv2_image_finalize(GObject *object) {
     G_OBJECT_CLASS(exiv2_image_parent_class)->finalize(object);
+    // XXX maybe this should be in dispose instead??
+    g_return_if_fail(object != NULL);
+    Exiv2ImagePrivate *priv = GET_PRIVATE(object);
+    g_return_if_fail(priv->image != NULL);
+    delete priv->image;
 }
 
 static void exiv2_image_class_init(Exiv2ImageClass *klass) {
