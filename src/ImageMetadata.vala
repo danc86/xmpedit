@@ -307,7 +307,7 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     }
     
     public bool iter_nth_child(out Gtk.TreeIter iter, Gtk.TreeIter? parent, int n) {
-        if (parent == null && n < properties.size - 1) {
+        if (parent == null && n <= properties.size - 1) {
             iter = { stamp, (void*) properties[n], null, null };
             return true;
         }
