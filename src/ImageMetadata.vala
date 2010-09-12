@@ -46,6 +46,7 @@ private class Description : Gtk.Table, PropertyEditor {
         
         var label = new Gtk.Label(prop_display_name());
         label.xalign = 0;
+        label.mnemonic_widget = text_view;
         attach(label,
                 0, 1, 0, 1,
                 Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND, 0,
