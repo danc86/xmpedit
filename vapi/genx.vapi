@@ -1,3 +1,8 @@
+/*
+ * http://www.djc.id.au/blog/genx-vala
+ * Released into the public domain
+ */
+
 [CCode (cheader_filename = "genx-glib.h")]
 namespace Genx {
 

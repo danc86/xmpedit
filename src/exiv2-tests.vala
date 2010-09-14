@@ -1,3 +1,8 @@
+/*
+ * xmpedit
+ * Copyright 2010 Dan Callaghan <djc@djc.id.au>
+ * Released under GPLv2
+ */
 
 #if TEST
 

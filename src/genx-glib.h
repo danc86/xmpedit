@@ -1,3 +1,7 @@
+/*
+ * http://www.djc.id.au/blog/genx-vala
+ * Released into the public domain
+ */
 
 #ifndef _GENX_GLIB_H
 #define _GENX_GLIB_H

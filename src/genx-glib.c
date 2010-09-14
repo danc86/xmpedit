@@ -1,3 +1,7 @@
+/*
+ * http://www.djc.id.au/blog/genx-vala
+ * Released into the public domain
+ */
 
 #include <glib.h>
 #include <genx.h>

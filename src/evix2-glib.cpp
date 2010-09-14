@@ -1,3 +1,8 @@
+/*
+ * xmpedit
+ * Copyright 2010 Dan Callaghan <djc@djc.id.au>
+ * Released under GPLv2
+ */
 
 #include <exiv2/image.hpp>
 #include "exiv2-glib.h"
