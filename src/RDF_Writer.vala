@@ -20,6 +20,7 @@ private class Writer {
     private Graph graph;
     private Genx.Writer genx_writer = new Genx.Writer();
     private StringBuilder output = new StringBuilder();
+    private Gee.Set<Statement> written_statements = new Gee.HashSet<Statement>();
     
     public Writer(Graph graph) {
         this.graph = graph;
@@ -57,14 +58,38 @@ private class Writer {
     private unowned Genx.Attribute xml_lang_attr;
     
     private void write_resource(SubjectNode node, bool is_start = false) {
-        rdf_description_el.start();
         if (is_start) {
+            rdf_description_el.start();
             rdf_about_attr.add("");
-        } else if (node is URIRef) {
-            rdf_about_attr.add(((URIRef) node).uri);
+        } else {
+            URIRef type = null;
+            foreach (var statement in graph.find_matching_statements(
+                    node, new URIRef(RDF_NS + "type"), null)) {
+                if (statement.object is URIRef) {
+                    type = (URIRef) statement.object;
+                    written_statements.add(statement);
+                    break;
+                }
+            }
+            if (type != null) {
+                unowned Genx.Namespace ns;
+                string local_name;
+                split_uri(((URIRef) type).uri, out ns, out local_name);
+                unowned Genx.Element resource_el; // XXX reuse
+                resource_el = genx_writer.declare_element(ns, local_name);
+                resource_el.start();
+            } else {
+                rdf_description_el.start();
+            }
+            if (node is URIRef) {
+                rdf_about_attr.add(((URIRef) node).uri);
+            }
         }
         foreach (var statement in graph.find_matching_statements(node, null, null)) {
-            write_property(statement.predicate, statement.object);
+            if (!(statement in written_statements)) {
+                write_property(statement.predicate, statement.object);
+                written_statements.add(statement);
+            }
         }
         genx_writer.end_element();
     }
@@ -192,15 +217,38 @@ public void test_blank_object() {
 
 public void test_leaf_resource_object() {
     var person = new URIRef("http://example.com/");
-    var foaf_person = new URIRef("http://xmlns.com/foaf/0.1/Person");
+    var foaf_knows = new URIRef("http://xmlns.com/foaf/0.1/knows");
+    var other_person = new URIRef("http://example.com/other");
     
     var g = new Graph();
-    g.insert(new Statement(person, new URIRef(RDF_NS + "type"), foaf_person));
+    g.insert(new Statement(person, foaf_knows, other_person));
     assert_equal(
         """<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">""" +
             """<rdf:Description rdf:about="">""" +
-                """<rdf:type rdf:resource="http://xmlns.com/foaf/0.1/Person">""" +
-                """</rdf:type>""" +
+                """<foaf:knows xmlns:foaf="http://xmlns.com/foaf/0.1/" """ +
+                    """rdf:resource="http://example.com/other">""" +
+                """</foaf:knows>""" +
+            """</rdf:Description>""" +
+        """</rdf:RDF>""",
+        g.to_xml(person));
+}
+
+public void test_rdf_type() {
+    var person = new URIRef("http://example.com/");
+    var foaf_knows = new URIRef("http://xmlns.com/foaf/0.1/knows");
+    var other_person = new URIRef("http://example.com/other");
+    var foaf_person = new URIRef("http://xmlns.com/foaf/0.1/Person");
+    
+    var g = new Graph();
+    g.insert(new Statement(person, foaf_knows, other_person));
+    g.insert(new Statement(other_person, new URIRef(RDF_NS + "type"), foaf_person));
+    assert_equal(
+        """<rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#">""" +
+            """<rdf:Description rdf:about="">""" +
+                """<foaf:knows xmlns:foaf="http://xmlns.com/foaf/0.1/">""" +
+                    """<foaf:Person rdf:about="http://example.com/other">""" +
+                    """</foaf:Person>""" +
+                """</foaf:knows>""" +
             """</rdf:Description>""" +
         """</rdf:RDF>""",
         g.to_xml(person));
@@ -220,6 +268,7 @@ public void register_writer_tests() {
     Test.add_func("/rdf/writer/test_resource_object", WriterTests.test_resource_object);
     Test.add_func("/rdf/writer/test_blank_object", WriterTests.test_blank_object);
     Test.add_func("/rdf/writer/test_leaf_resource_object", WriterTests.test_leaf_resource_object);
+    Test.add_func("/rdf/writer/test_rdf_type", WriterTests.test_rdf_type);
 }
 
 #endif
