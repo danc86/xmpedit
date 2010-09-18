@@ -231,7 +231,8 @@ public class ImageMetadata : Object, Gtk.TreeModel {
         xml.append("<?xpacket begin=\"\xef\xbb\xbf\" id=\"W5M0MpCehiHzreSzNTczkc9d\"?>" +
                 """<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmpedit 0.0-dev">""");
         xml.append(graph.to_xml(subject));
-        var new_size = xml.str.size() + 12; // plus </x:xmpmeta>
+        xml.append("</x:xmpmeta>");
+        var new_size = xml.str.size() + 19; // plus trailing PI
         size_t padding;
         if (new_size <= xmp_packet_size)
             padding = xmp_packet_size - new_size;
@@ -239,7 +240,7 @@ public class ImageMetadata : Object, Gtk.TreeModel {
             padding = new_size + 1024;
         for (size_t i = 0; i < padding; i ++)
             xml.append_c(' ');
-        xml.append("""</x:xmpmeta>""");
+        xml.append("""<?xpacket end="w"?>""");
 #if DEBUG
         stderr.puts("=== Serialized XMP packet:\n");
         stderr.puts(xml.str);
