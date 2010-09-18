@@ -59,11 +59,15 @@ class Builder(object):
         self.link(target='xmpedit')
     
     def test(self):
+        # unit tests
         self.compile_vala(defs=['DEBUG', 'TEST'])
         self.compile_c()
         self.compile_cpp()
         self.link(target='xmpedit_test')
         invoke(['gtester', '--verbose', 'target/xmpedit_test'])
+        # gui tests
+        invoke(['g++', '-lexiv2', '-o', 'target/printxmp', 'test/printxmp.cpp']) # XXX
+        invoke(['test/guitest.py'])
 
     def compile_vala(self, defs=[]):
         invoke(['valac', '-C', '-d', 'target/valac'] +
