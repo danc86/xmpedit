@@ -23,84 +23,135 @@ def files_under(*paths):
 
 def ensure_dir(path):
     if not os.path.isdir(path):
-        os.mkdir(path)
+        os.makedirs(path)
 
 def replace_ext(path, old, new):
     if not path.endswith(old):
         raise ValueError('Path %r does not end with %r' % (path, old))
     return path[:-len(old)] + new
 
-class Builder(object):
+class Program(object):
 
-    def __init__(self):
-        self.pkgs = ['gtk+-2.0', 'gee-1.0', 'libxml-2.0', 'libsoup-2.4', 'exiv2']
-        self.vala_sources = [f for f in files_under('src', 'lib') if f.endswith('.vala')]
-        self.vala_pkgs = self.pkgs + ['genx']
-        self.vala_vapidirs = ['vapi']
-        self.vala_flags = ['-g']
-        self.c_sources = [f for f in files_under('src', 'lib') if f.endswith('.c')]
-        self.c_flags = ['-g', '-Wall', '-Wno-pointer-sign', '-O']
-        self.c_includes = ['src', 'lib/genx']
-        self.cpp_sources = [f for f in files_under('src', 'lib') if f.endswith('.cpp')]
-        self.cpp_flags = ['-g', '-Wall', '-O']
-        self.cpp_includes = self.c_includes
+    default_vala_flags = '-g'
+    default_c_flags = '-g -O -Wall'
+    default_cpp_flags = '-g -O -Wall'
+    default_ld_flags = ''
+
+    def __init__(self, target):
+        self.target = target
+        self.work_dir = os.path.join('target', '%s-work' % self.target)
+        ensure_dir(self.work_dir)
+        self.vala_sources = []
+        self.vala_flags = os.environ.get('VALAFLAGS', self.default_vala_flags).split()
+        self.vala_pkgs = []
+        self.vala_vapidirs = []
+        self.c_sources = []
+        self.c_flags = os.environ.get('CFLAGS', self.default_c_flags).split()
+        self.cpp_sources = []
+        self.cpp_flags = os.environ.get('CXXFLAGS', self.default_cpp_flags).split()
         self.objects = []
-        self.ld_flags = []
-        for pkg in self.pkgs:
+        self.ld_flags = os.environ.get('LDFLAGS', self.default_ld_flags).split()
+
+    def from_sources(self, vala_sources=[], c_sources=[], cpp_sources=[]):
+        self.vala_sources.extend(vala_sources)
+        self.c_sources.extend(c_sources)
+        self.cpp_sources.extend(cpp_sources)
+        return self
+
+    def from_sources_under(self, *paths):
+        self.vala_sources.extend(f for f in files_under(*paths) if f.endswith('.vala'))
+        self.c_sources.extend(f for f in files_under(*paths) if f.endswith('.c'))
+        self.cpp_sources.extend(f for f in files_under(*paths) if f.endswith('.cpp'))
+        return self
+
+    def with_vapi_dirs(self, *vapidirs):
+        self.vala_flags.extend('--vapidir=%s' % vapidir for vapidir in vapidirs)
+        return self
+
+    def with_c_includes(self, *includes):
+        self.c_flags.extend('-I%s' % inc for inc in includes)
+        return self
+
+    def with_cpp_includes(self, *includes):
+        self.cpp_flags.extend('-I%s' % inc for inc in includes)
+        return self
+
+    def using_pkgs(self, *pkgs):
+        for pkg in pkgs:
             cflags = subprocess.check_output(['pkg-config', '--cflags', pkg]).decode('ascii').split()
             self.c_flags.extend(cflags)
             self.cpp_flags.extend(cflags)
             self.ld_flags.extend(subprocess.check_output(['pkg-config', '--libs', pkg]).decode('ascii').split())
-    
-    def compile(self):
-        self.compile_vala(defs=['DEBUG'])
-        self.compile_c()
-        self.compile_cpp()
-        self.link(target='xmpedit')
-    
-    def test(self):
-        # unit tests
-        self.compile_vala(defs=['DEBUG', 'TEST'])
-        self.compile_c()
-        self.compile_cpp()
-        self.link(target='xmpedit_test')
-        invoke(['gtester', '--verbose', 'target/xmpedit_test'])
-        # gui tests
-        invoke(['g++', '-lexiv2', '-o', 'target/printxmp', 'test/printxmp.cpp']) # XXX
-        invoke(['test/guitest.py'])
+        self.vala_pkgs.extend(pkgs)
+        return self
 
-    def compile_vala(self, defs=[]):
-        invoke(['valac', '-C', '-d', 'target/valac'] +
-               self.vala_flags +
-               ['--pkg=%s' % pkg for pkg in self.vala_pkgs] +
-               ['--define=%s' % define for define in defs] +
-               ['--vapidir=%s' % vapidir for vapidir in self.vala_vapidirs] +
-               self.vala_sources)
-        self.c_sources.extend(os.path.join('target', 'valac', replace_ext(source, '.vala', '.c'))
-                for source in self.vala_sources)
+    def with_defines(self, *defs):
+        self.vala_flags.extend('--define=%s' % d for d in defs)
+        return self
+
+    def build(self):
+        self._compile_vala()
+        self._compile_c()
+        self._compile_cpp()
+        self._link()
+        
+    def _compile_vala(self):
+        if self.vala_sources:
+            invoke(['valac', '-C', '-d', self.work_dir] +
+                   self.vala_flags +
+                   ['--pkg=%s' % pkg for pkg in self.vala_pkgs] +
+                   self.vala_sources)
+            self.c_sources.extend(os.path.join(self.work_dir, replace_ext(source, '.vala', '.c'))
+                    for source in self.vala_sources)
      
-    def compile_c(self):
-        ensure_dir(os.path.join('target', 'cc'))
+    def _compile_c(self):
         for source in self.c_sources:
-            out = os.path.join('target', 'cc', replace_ext(os.path.basename(source), '.c', '.o'))
-            invoke(['gcc'] + self.c_flags +
-                   ['-I%s' % inc for inc in self.c_includes] +
-                   ['-c', source, '-o', out])
+            out = os.path.join(self.work_dir, replace_ext(os.path.basename(source), '.c', '.o'))
+            invoke(['gcc'] + self.c_flags + ['-c', source, '-o', out])
             self.objects.append(out)
      
-    def compile_cpp(self):
-        ensure_dir(os.path.join('target', 'cc'))
+    def _compile_cpp(self):
         for source in self.cpp_sources:
-            out = os.path.join('target', 'cc', replace_ext(os.path.basename(source), '.cpp', '.o'))
-            invoke(['g++'] + self.cpp_flags +
-                   ['-I%s' % inc for inc in self.cpp_includes] +
-                   ['-c', source, '-o', out])
+            out = os.path.join(self.work_dir, replace_ext(os.path.basename(source), '.cpp', '.o'))
+            invoke(['g++'] + self.cpp_flags + ['-c', source, '-o', out])
             self.objects.append(out)
     
-    def link(self, target):
+    def _link(self):
         invoke(['gcc'] + self.ld_flags + self.objects +
-               ['-o', os.path.join('target', target)])
+               ['-o', os.path.join('target', self.target)])
+
+def compile():
+    pkgs = ['gtk+-2.0', 'gee-1.0', 'libxml-2.0', 'libsoup-2.4', 'exiv2']
+    xmpedit = Program('xmpedit') \
+              .from_sources_under('src', 'lib') \
+              .with_vapi_dirs('vapi') \
+              .with_c_includes('src', 'lib/genx') \
+              .using_pkgs(*pkgs) \
+              .with_defines('DEBUG')
+    xmpedit.c_flags.append('-Wno-pointer-sign')
+    xmpedit.vala_pkgs.append('genx')
+    xmpedit.build()
+
+def test():
+    # unit tests
+    pkgs = ['gtk+-2.0', 'gee-1.0', 'libxml-2.0', 'libsoup-2.4', 'exiv2']
+    xmpedit_test = Program('xmpedit_test') \
+                   .from_sources_under('src', 'lib') \
+                   .with_vapi_dirs('vapi') \
+                   .with_c_includes('src', 'lib/genx') \
+                   .using_pkgs(*pkgs) \
+                   .with_defines('DEBUG', 'TEST')
+    xmpedit_test.c_flags.append('-Wno-pointer-sign')
+    xmpedit_test.vala_pkgs.append('genx')
+    xmpedit_test.build()
+    invoke(['gtester', '--verbose', 'target/xmpedit_test'])
+    # gui tests
+    printxmp = Program('printxmp') \
+               .from_sources(cpp_sources=[os.path.join('test', 'printxmp.cpp')]) \
+               .using_pkgs('exiv2') \
+               .build()
+    invoke(['test/guitest.py'])
 
 if __name__ == '__main__':
-    Builder().compile()
-    Builder().test()
+    compile()
+    test()
