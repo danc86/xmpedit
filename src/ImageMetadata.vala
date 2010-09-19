@@ -15,6 +15,7 @@ public interface PropertyEditor : Gtk.Widget {
     public abstract string prop_name { get; }
     public abstract RDF.Graph graph { get; set; }
     public abstract RDF.URIRef subject { get; set; }
+    public signal void committed();
     
     /**
      * Examine the graph and return a one-line summary of the value found
@@ -136,6 +137,7 @@ private class Description : Gtk.Table, PropertyEditor {
                 object = new RDF.PlainLiteral(value);
             graph.insert(new RDF.Statement(subject, DC_DESCRIPTION, object));
         }
+        committed();
     }
 
 }
@@ -166,6 +168,7 @@ public class ImageMetadata : Object, Gtk.TreeModel {
 
     public string path { get; construct; }
     public Gee.List<PropertyEditor> properties { get; construct; }
+    public bool dirty = false;
     private Exiv2.Image image;
     private size_t xmp_packet_size;
     private RDF.Graph graph;
@@ -211,17 +214,22 @@ public class ImageMetadata : Object, Gtk.TreeModel {
             var pe = (PropertyEditor) Object.new(type);
             pe.graph = graph;
             pe.subject = subject;
+            pe.committed.connect(() => {
+                dirty = true;
+                updated();
+            });
             properties.add(pe);
         }
         //foreach (var tag in exiv_metadata.get_xmp_tags()) {
         //    properties.add(new PropertyEditor(tag, exiv_metadata.get_xmp_tag_string(tag)));
         //}
+        dirty = false;
         updated();
     }
     
     public void save() {
         return_if_fail(image != null); // only call after successful loading
-        // XXX shouldn't write if not dirty!
+        return_if_fail(dirty); // only call if dirty
 #if DEBUG
         stderr.puts("=== Final RDF graph:\n");
         foreach (var s in graph.get_statements())
@@ -247,6 +255,8 @@ public class ImageMetadata : Object, Gtk.TreeModel {
 #endif
         image.xmp_packet = xml.str;
         image.write_metadata();
+        dirty = false;
+        updated();
     }
     
     /****** TREEMODEL IMPLEMENTATION STUFF **********/

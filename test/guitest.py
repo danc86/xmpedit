@@ -24,6 +24,7 @@ class XmpeditTestCase(unittest.TestCase):
         self.tempfile = tempfile.NamedTemporaryFile()
         self.tempfile.write(open(os.path.join('testdata', image_filename)).read())
         self.tempfile.flush()
+        self.tempfile.seek(0)
         self.popen = subprocess.Popen(
                 [os.path.join('target', 'xmpedit'), self.tempfile.name])
 
@@ -40,6 +41,10 @@ class XmpeditTestCase(unittest.TestCase):
                 return
             time.sleep(1)
         assert False, 'Process did not end'
+    
+    def assert_image_unmodified(self, image_filename):
+        self.tempfile.seek(0)
+        assert self.tempfile.read() == open(os.path.join('testdata', image_filename)).read(), 'Image should be unmodified'
 
     def get_window(self):
         root = Xlib.display.Display().screen().root # XXX multiple screens?
@@ -65,16 +70,33 @@ class Test(XmpeditTestCase):
     def tearDown(self):
         self.stop()
         
-    def test_roundtrip(self):
+    def test_do_nothing(self):
         xmpedit = dogtail.tree.Root().application('xmpedit')
         window = xmpedit.child(roleName='frame')
-        time.sleep(0.5)
         self.close_window()
         self.assert_stopped()
-        xmp = extract_xmp(self.tempfile.name)
-        self.assertEquals(len(xmp), 2675) # 
-        self.assertEquals(extract_xmp(self.tempfile.name),
-                u'''<?xpacket begin="\ufeff" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmpedit 0.0-dev"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about=""><Iptc4xmlCore:Location xmlns:Iptc4xmlCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/">UQ St Lucia</Iptc4xmlCore:Location><dc:description xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Alt><rdf:li xml:lang="x-default">Edward Scissorhands stencil graffiti on the wall of John Hines building.</rdf:li></rdf:Alt></dc:description></rdf:Description></rdf:RDF></x:xmpmeta>''' + ' ' * 2079 + '''<?xpacket end="w"?>''')
+        self.assert_image_unmodified('24-06-06_1449.jpg')
+    
+    def test_close_without_saving(self):
+        xmpedit = dogtail.tree.Root().application('xmpedit')
+        window = xmpedit.child(roleName='frame')
+        pe, = [child for child in window.child('Image properties').children
+                if child.name.splitlines()[0] == 'Description'] # ugh
+        pe.select()
+        entry = window.child(roleName='ROLE_TEXT', label='Description')
+        entry.grabFocus()
+        entry.text = 'new description'
+        lang = window.child(roleName='ROLE_TEXT', label='Language:')
+        lang.text = 'en'
+        pe.grabFocus() # XXX DELETEME
+        self.close_window()
+        alert = xmpedit.child(roleName='alert')
+        self.assertEquals(alert.child(roleName='label').name,
+                'Your changes to image "%s" have not been saved.\n\nSave changes before closing?'
+                % os.path.basename(self.tempfile.name))
+        alert.button('Close without saving').doAction('click')
+        self.assert_stopped()
+        self.assert_image_unmodified('24-06-06_1449.jpg')
 
 if __name__ == '__main__':
     unittest.main()
