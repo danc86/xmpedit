@@ -26,7 +26,12 @@ class XmpeditTestCase(unittest.TestCase):
         self.tempfile.flush()
         self.tempfile.seek(0)
         self.popen = subprocess.Popen(
-                [os.path.join('target', 'xmpedit'), self.tempfile.name])
+                [os.path.join('target', 'xmpedit'), self.tempfile.name],
+                env=dict(os.environ.items() + [
+                    ('G_DEBUG', 'fatal_criticals'),
+                    ('G_SLICE', 'debug-blocks'),
+                    ('GNOME_DISABLE_CRASH_DIALOG', '1')
+                ]))
 
     def stop(self):
         if self.popen.returncode is None:
