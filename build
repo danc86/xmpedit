@@ -153,5 +153,11 @@ def test():
     invoke(['test/guitest.py'])
 
 if __name__ == '__main__':
+    from optparse import OptionParser
+    parser = OptionParser(usage='usage: %prog [options]')
+    parser.add_option('-t', '--test', action='store_true', default=False,
+            help='build and run tests')
+    options, args = parser.parse_args()
     compile()
-    test()
+    if options.test:
+        test()
