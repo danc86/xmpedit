@@ -32,7 +32,9 @@ def replace_ext(path, old, new):
 
 class Program(object):
 
+    default_valac = 'valac'
     default_vala_flags = '-g'
+    default_cc = 'gcc'
     default_c_flags = '-g -O -Wall'
     default_cpp_flags = '-g -O -Wall'
     default_ld_flags = ''
@@ -42,10 +44,12 @@ class Program(object):
         self.work_dir = os.path.join('target', '%s-work' % self.target)
         ensure_dir(self.work_dir)
         self.vala_sources = []
+        self.valac = os.environ.get('VALAC', self.default_valac)
         self.vala_flags = os.environ.get('VALAFLAGS', self.default_vala_flags).split()
         self.vala_pkgs = []
         self.vala_vapidirs = []
         self.c_sources = []
+        self.cc = os.environ.get('CC', self.default_cc)
         self.c_flags = os.environ.get('CFLAGS', self.default_c_flags).split()
         self.cpp_sources = []
         self.cpp_flags = os.environ.get('CXXFLAGS', self.default_cpp_flags).split()
@@ -97,7 +101,7 @@ class Program(object):
         
     def _compile_vala(self):
         if self.vala_sources:
-            invoke(['valac', '-C', '-d', self.work_dir] +
+            invoke([self.valac, '-C', '-d', self.work_dir] +
                    self.vala_flags +
                    ['--pkg=%s' % pkg for pkg in self.vala_pkgs] +
                    self.vala_sources)
@@ -107,7 +111,7 @@ class Program(object):
     def _compile_c(self):
         for source in self.c_sources:
             out = os.path.join(self.work_dir, replace_ext(os.path.basename(source), '.c', '.o'))
-            invoke(['gcc'] + self.c_flags + ['-c', source, '-o', out])
+            invoke([self.cc] + self.c_flags + ['-c', source, '-o', out])
             self.objects.append(out)
      
     def _compile_cpp(self):
@@ -117,7 +121,7 @@ class Program(object):
             self.objects.append(out)
     
     def _link(self):
-        invoke(['gcc'] + self.ld_flags + self.objects +
+        invoke([self.cc] + self.ld_flags + self.objects +
                ['-o', os.path.join('target', self.target)])
 
 def compile():
