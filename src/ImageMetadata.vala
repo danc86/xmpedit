@@ -129,9 +129,9 @@ private class Description : Gtk.Table, PropertyEditor {
         graph.remove_matching_statements(subject, DC_DESCRIPTION, null);
         string value = text_view.buffer.text;
         string lang = lang_entry.text;
-        if (value.size() > 0) {
+        if (value.length > 0) {
             RDF.PlainLiteral object;
-            if (lang.size() > 0)
+            if (lang.length > 0)
                 object = new RDF.PlainLiteral.with_lang(value, lang);
             else
                 object = new RDF.PlainLiteral(value);
@@ -196,7 +196,7 @@ public class ImageMetadata : Object, Gtk.TreeModel {
         image = new Exiv2.Image.from_path(path);
         image.read_metadata();
         unowned string xmp = image.xmp_packet;
-        xmp_packet_size = xmp.size();
+        xmp_packet_size = xmp.length;
 #if DEBUG
         stderr.puts("=== Extracted XMP packet:\n");
         stderr.puts(xmp);
@@ -240,7 +240,7 @@ public class ImageMetadata : Object, Gtk.TreeModel {
                 """<x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmpedit 0.0-dev">""");
         xml.append(graph.to_xml(subject));
         xml.append("</x:xmpmeta>");
-        var new_size = xml.str.size() + 19; // plus trailing PI
+        var new_size = xml.str.length + 19; // plus trailing PI
         size_t padding;
         if (new_size <= xmp_packet_size)
             padding = xmp_packet_size - new_size;

@@ -28,7 +28,7 @@ private struct Parser {
     }
 
     public void parse(string xml) throws ParseError {
-        Xml.Doc* doc = Xml.Parser.parse_memory(xml, (int) xml.size());
+        Xml.Doc* doc = Xml.Parser.parse_memory(xml, (int) xml.length);
         if (doc == null)
             throw new ParseError.UNPARSEABLE_XML("doc == null");
         try {

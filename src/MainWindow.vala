@@ -51,11 +51,11 @@ public class MainWindow : Gtk.Window {
         var tree_view_scrolled = new Gtk.ScrolledWindow(null, null);
         tree_view_scrolled.add(tree_view);
         tree_view_scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC);
-        var revert_button = new Gtk.Button.from_stock(Gtk.STOCK_REVERT_TO_SAVED);
+        var revert_button = new Gtk.Button.from_stock(Gtk.Stock.REVERT_TO_SAVED);
         revert_button.clicked.connect(() => {
             critical("IMPLEMENTME");
         });
-        var save_button = new Gtk.Button.from_stock(Gtk.STOCK_SAVE);
+        var save_button = new Gtk.Button.from_stock(Gtk.Stock.SAVE);
         save_button.clicked.connect(() => {
             image_metadata.save();
         });
@@ -98,8 +98,8 @@ public class MainWindow : Gtk.Window {
                         "Save changes before closing?",
                         file.get_basename());
                 dialog.add_button(STOCK_CLOSE_WITHOUT_SAVING, 1);
-                dialog.add_button(Gtk.STOCK_CANCEL, 2);
-                dialog.add_button(Gtk.STOCK_SAVE, 3);
+                dialog.add_button(Gtk.Stock.CANCEL, 2);
+                dialog.add_button(Gtk.Stock.SAVE, 3);
                 dialog.set_default_response(3);
                 var response = dialog.run();
                 dialog.destroy();
@@ -132,11 +132,11 @@ public class MainWindow : Gtk.Window {
     
     /** Create custom stock entries used in the application. */
     private static void add_stock() {
-        Gtk.stock_add_static(STOCK);
+        Gtk.Stock.add_static(STOCK);
     
         var icon_factory = new Gtk.IconFactory();
         icon_factory.add(STOCK_CLOSE_WITHOUT_SAVING,
-                Gtk.IconFactory.lookup_default(Gtk.STOCK_CLOSE));
+                Gtk.IconFactory.lookup_default(Gtk.Stock.CLOSE));
         icon_factory.add_default();
     }
     
