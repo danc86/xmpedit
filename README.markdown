@@ -20,7 +20,8 @@ xmpedit depends on the following packages:
 
 The following additional dependencies are required to build xmpedit:
 
-* [Vala](http://live.gnome.org/Vala)
+* [Vala](http://live.gnome.org/Vala) version 0.10
+  (0.11 is [broken](https://bugzilla.gnome.org/show_bug.cgi?id=633013))
 * A C/C++ compiler (only tested with gcc)
 * Python
 
