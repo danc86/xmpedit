@@ -53,7 +53,8 @@ public class MainWindow : Gtk.Window {
         tree_view_scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC);
         var revert_button = new Gtk.Button.from_stock(Gtk.Stock.REVERT_TO_SAVED);
         revert_button.clicked.connect(() => {
-            critical("IMPLEMENTME");
+            image_metadata.revert();
+            tree_view.set_cursor(new Gtk.TreePath.first(), null, false);
         });
         var save_button = new Gtk.Button.from_stock(Gtk.Stock.SAVE);
         save_button.clicked.connect(() => {
@@ -61,9 +62,11 @@ public class MainWindow : Gtk.Window {
         });
         revert_button.sensitive = false;
         save_button.sensitive = false;
-        image_metadata.updated.connect(() => {
-            revert_button.sensitive = image_metadata.dirty;
-            save_button.sensitive = image_metadata.dirty;
+        image_metadata.notify.connect((p) => {
+            if (p.name == "dirty") {
+                revert_button.sensitive = image_metadata.dirty;
+                save_button.sensitive = image_metadata.dirty;
+            }
         });
         var left_button_box = new Gtk.HButtonBox();
         left_button_box.spacing = 5;

@@ -8,13 +8,13 @@ namespace Xmpedit {
 
 private class PropertySummaryCellRenderer : Gtk.CellRendererText {
 
-    private PropertyEditor _property_editor;
-    public PropertyEditor property_editor {
+    private ImageProperty _image_property;
+    public ImageProperty image_property {
         get {
-            return _property_editor;
+            return _image_property;
         }
         set {
-            _property_editor = value;
+            _image_property = value;
             markup = value.list_markup();
         }
     }
@@ -34,7 +34,7 @@ public class MetadataTreeView : Gtk.TreeView {
         column.fixed_width = 300;
         var cell_renderer = new PropertySummaryCellRenderer();
         column.pack_start(cell_renderer, /* expand */ true);
-        column.add_attribute(cell_renderer, "property_editor", 0);
+        column.add_attribute(cell_renderer, "image_property", 0);
         append_column(column);
         get_selection().set_mode(Gtk.SelectionMode.BROWSE);
     }

@@ -59,6 +59,7 @@ class XmpeditTestCase(unittest.TestCase):
     
     def close_window(self):
         window = self.get_window()
+        assert window is not None, "Where'd the window go?"
         WM_PROTOCOLS = window.display.get_atom('WM_PROTOCOLS')
         WM_DELETE_WINDOW = window.display.get_atom('WM_DELETE_WINDOW')
         assert WM_DELETE_WINDOW in window.get_wm_protocols()
@@ -93,7 +94,6 @@ class Test(XmpeditTestCase):
         entry.text = 'new description'
         lang = window.child(roleName='ROLE_TEXT', label='Language:')
         lang.text = 'en'
-        pe.grabFocus() # XXX DELETEME
         self.close_window()
         alert = xmpedit.child(roleName='alert')
         self.assertEquals(alert.child(roleName='label').name,
@@ -102,6 +102,48 @@ class Test(XmpeditTestCase):
         alert.button('Close without saving').doAction('click')
         self.assert_stopped()
         self.assert_image_unmodified('24-06-06_1449.jpg')
+            
+    def test_edit_then_revert(self):
+        xmpedit = dogtail.tree.Root().application('xmpedit')
+        window = xmpedit.child(roleName='frame')
+        pe, = [child for child in window.child('Image properties').children
+                if child.name.splitlines()[0] == 'Description'] # ugh
+        pe.select()
+        entry = window.child(roleName='ROLE_TEXT', label='Description')
+        entry.grabFocus()
+        entry.text = 'new description'
+        lang = window.child(roleName='ROLE_TEXT', label='Language:')
+        lang.text = 'en'
+        assert window.button('Revert').sensitive
+        window.button('Revert').doAction('click')
+        entry = window.child(roleName='ROLE_TEXT', label='Description')
+        self.assertEquals(entry.text, 'Edward Scissorhands stencil graffiti '
+                'on the wall of John Hines building.')
+        lang = window.child(roleName='ROLE_TEXT', label='Language:')
+        self.assertEquals(lang.text, 'x-default')
+        self.close_window()
+        self.assert_stopped()
+        self.assert_image_unmodified('24-06-06_1449.jpg')
+
+    def test_update_description(self):
+        xmpedit = dogtail.tree.Root().application('xmpedit')
+        window = xmpedit.child(roleName='frame')
+        pe, = [child for child in window.child('Image properties').children
+                if child.name.splitlines()[0] == 'Description'] # ugh
+        pe.select()
+        entry = window.child(roleName='ROLE_TEXT', label='Description')
+        entry.grabFocus()
+        entry.text = 'new description'
+        lang = window.child(roleName='ROLE_TEXT', label='Language:')
+        lang.text = 'en'
+        assert window.button('Save').sensitive
+        window.button('Save').doAction('click')
+        self.close_window()
+        self.assert_stopped()
+        xmp = extract_xmp(self.tempfile.name)
+        self.assertEquals(len(xmp), 2675)
+        self.assertEquals(extract_xmp(self.tempfile.name),
+                u'''<?xpacket begin="\ufeff" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmpedit 0.0-dev"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about=""><Iptc4xmlCore:Location xmlns:Iptc4xmlCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/">UQ St Lucia</Iptc4xmlCore:Location><dc:description xmlns:dc="http://purl.org/dc/elements/1.1/" xml:lang="en">new description</dc:description></rdf:Description></rdf:RDF></x:xmpmeta>''' + ' ' * 2179 + '''<?xpacket end="w"?>''')
 
 if __name__ == '__main__':
     unittest.main()

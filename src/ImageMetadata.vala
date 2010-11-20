@@ -6,16 +6,17 @@
 
 namespace Xmpedit {
 
-public interface PropertyEditor : Gtk.Widget {
+public interface ImageProperty : Object {
 
     public static Type[] all_types() {
         return { typeof(Description) };
     }
 
-    public abstract string prop_name { get; }
-    public abstract RDF.Graph graph { get; set; }
-    public abstract RDF.URIRef subject { get; set; }
-    public signal void committed();
+    public abstract string name { get; }
+    public abstract RDF.Graph graph { get; construct; }
+    public abstract RDF.URIRef subject { get; construct; }
+    
+    public signal void changed();
     
     /**
      * Examine the graph and return a one-line summary of the value found
@@ -23,72 +24,49 @@ public interface PropertyEditor : Gtk.Widget {
      */
     protected abstract string value_summary();
     
-    public string prop_display_name() {
-        return prop_name.substring(0, 1).up() + prop_name.substring(1);
+    public string display_name() {
+        return name.substring(0, 1).up() + name.substring(1);
     }
 
     public string list_markup() {
-	    return @"<b>$(prop_display_name())</b>\n$(value_summary())";
+	    return @"<b>$(display_name())</b>\n$(value_summary())";
 	}
 	
 }
 
-private class Description : Gtk.Table, PropertyEditor {
+public class Description : Object, ImageProperty {
 
     private static RDF.URIRef DC_DESCRIPTION = new RDF.URIRef("http://purl.org/dc/elements/1.1/description");
     
-    public string prop_name { get { return "description"; } }
-    public RDF.Graph graph { get; set; }
-    public RDF.URIRef subject { get; set; }
+    public string name { get { return "description"; } }
+    public RDF.Graph graph { get; construct; }
+    public RDF.URIRef subject { get; construct; }
 
-    private Gtk.ScrolledWindow text_scrolled = new Gtk.ScrolledWindow(null, null);
-    private Gtk.TextView text_view = new Gtk.TextView();
-    private Gtk.Entry lang_entry = new Gtk.Entry(); // XXX make a combo
+    private string _value;
+    private string _lang;
     
+    public string value {
+        get { return _value; }
+        set { _value = value; update(); }
+    }
+    public string lang {
+        get { return _lang; }
+        set { _lang = value; update(); }
+    }
+        
     construct {
-        n_rows = 2;
-        n_columns = 2;
-        homogeneous = false;
-        
-        var label = new Gtk.Label(prop_display_name());
-        label.xalign = 0;
-        label.mnemonic_widget = text_view;
-        attach(label,
-                0, 1, 0, 1,
-                Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND, 0,
-                0, 0);
-        set_row_spacing(0, 4);
-        
-        var lang_hbox = new Gtk.HBox(/* homogeneous */ false, /* spacing */ 4);
-        lang_entry.width_chars = 8;
-        var lang_label = new Gtk.Label("Language:");
-        lang_label.xalign = 1;
-        lang_label.mnemonic_widget = lang_entry;
-        lang_hbox.add(lang_label);
-        lang_hbox.add(lang_entry);
-        attach(lang_hbox,
-                1, 2, 0, 1,
-                0, 0,
-                0, 0);
-        set_col_spacing(0, 10);
-
-        text_view.wrap_mode = Gtk.WrapMode.WORD;
-        
-        text_scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC);
-        text_scrolled.shadow_type = Gtk.ShadowType.ETCHED_IN;
-        text_scrolled.add(text_view);
-        attach(text_scrolled,
-                0, 2, 1, 2,
-                Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND, Gtk.AttachOptions.FILL | Gtk.AttachOptions.EXPAND,
-                0, 0);
-        
-        show.connect(load);
-        hide.connect(commit);
+        var literal = find_literal();
+        if (literal == null) {
+            _value = "";
+            _lang = "";
+        } else {
+            _value = literal.lexical_value;
+            _lang = (literal.lang != null ? literal.lang : "");
+        }
     }
 
     protected string value_summary() {
-        var literal = find_literal();
-        return (literal != null ? literal.lexical_value : "<i>not set</i>");
+        return _value;
     }
 
     private RDF.PlainLiteral? find_literal() {
@@ -102,42 +80,29 @@ private class Description : Gtk.Table, PropertyEditor {
                     new RDF.URIRef(RDF.RDF_NS + "Alt"))) {
                 description = select_alternative(node, graph);
                 if (description == null) {
-                    warning("found rdf:Alt with no alternatives for %s", prop_name);
+                    warning("found rdf:Alt with no alternatives for %s", name);
                     return null;
                 }
             }
         }
         if (!(description is RDF.PlainLiteral)) {
-            warning("found non-literal node for %s", prop_name);
+            warning("found non-literal node for %s", name);
             return null;
         }
         return (RDF.PlainLiteral) description;
     }
     
-    private void load() {
-        var literal = find_literal();
-        if (literal == null) {
-            text_view.buffer.text = "";
-            lang_entry.text = "";
-        } else {
-            text_view.buffer.text = literal.lexical_value;
-            lang_entry.text = (literal.lang != null ? literal.lang : "");
-        }
-    }
-    
-    private void commit() {
+    private void update() {
         graph.remove_matching_statements(subject, DC_DESCRIPTION, null);
-        string value = text_view.buffer.text;
-        string lang = lang_entry.text;
-        if (value.length > 0) {
+        if (_value.length > 0) {
             RDF.PlainLiteral object;
-            if (lang.length > 0)
-                object = new RDF.PlainLiteral.with_lang(value, lang);
+            if (_lang.length > 0)
+                object = new RDF.PlainLiteral.with_lang(_value, _lang);
             else
-                object = new RDF.PlainLiteral(value);
+                object = new RDF.PlainLiteral(_value);
             graph.insert(new RDF.Statement(subject, DC_DESCRIPTION, object));
         }
-        committed();
+        changed();
     }
 
 }
@@ -167,25 +132,23 @@ private string get_preferred_lang() {
 public class ImageMetadata : Object, Gtk.TreeModel {
 
     public string path { get; construct; }
-    public Gee.List<PropertyEditor> properties { get; construct; }
-    public bool dirty = false;
+    public Gee.List<ImageProperty> properties { get; construct; }
+    public bool dirty { get; set; }
     private Exiv2.Image image;
     private size_t xmp_packet_size;
     private RDF.Graph graph;
     private RDF.URIRef subject;
-    
-    public signal void updated();
     
     // TreeModel stuff
     private static int last_stamp = 1;
     private int stamp;
     
     public ImageMetadata(string path) {
-        Object(path: path);
+        Object(path: path, dirty: false);
     }
     
     construct {
-        properties = new Gee.LinkedList<PropertyEditor>();
+        properties = new Gee.LinkedList<ImageProperty>();
         lock (last_stamp) {
             stamp = last_stamp ++;
         }
@@ -195,6 +158,15 @@ public class ImageMetadata : Object, Gtk.TreeModel {
         return_if_fail(image == null); // only call this once
         image = new Exiv2.Image.from_path(path);
         image.read_metadata();
+        read_xmp();
+    }
+    
+    public void revert() {
+        return_if_fail(image != null);
+        read_xmp();
+    }
+    
+    private void read_xmp() {
         unowned string xmp = image.xmp_packet;
         xmp_packet_size = xmp.length;
 #if DEBUG
@@ -210,21 +182,11 @@ public class ImageMetadata : Object, Gtk.TreeModel {
             stderr.puts(@"$s\n");
 #endif
         subject = new RDF.URIRef(base_uri);
-        foreach (var type in PropertyEditor.all_types()) {
-            var pe = (PropertyEditor) Object.new(type);
-            pe.graph = graph;
-            pe.subject = subject;
-            pe.committed.connect(() => {
-                dirty = true;
-                updated();
-            });
-            properties.add(pe);
+        clear_properties();
+        foreach (var type in ImageProperty.all_types()) {
+            add_property(type);
         }
-        //foreach (var tag in exiv_metadata.get_xmp_tags()) {
-        //    properties.add(new PropertyEditor(tag, exiv_metadata.get_xmp_tag_string(tag)));
-        //}
         dirty = false;
-        updated();
     }
     
     public void save() {
@@ -256,14 +218,39 @@ public class ImageMetadata : Object, Gtk.TreeModel {
         image.xmp_packet = xml.str;
         image.write_metadata();
         dirty = false;
-        updated();
+    }
+    
+    private void clear_properties() {
+        for (var i = properties.size - 1; i >= 0; i --) {
+            properties.remove_at(i);
+            row_deleted(path_for_index(i));
+        }
+    }
+    
+    private void add_property(Type type) {
+        var index = properties.size;
+        var p = (ImageProperty) Object.new(type, graph: graph, subject: subject);
+        properties.add(p);
+        row_inserted(path_for_index(index), iter_for_index(index));
+        p.changed.connect(() => {
+            dirty = true;
+            row_changed(path_for_index(index), iter_for_index(index));
+        });
     }
     
     /****** TREEMODEL IMPLEMENTATION STUFF **********/
     
+    private Gtk.TreePath path_for_index(int index) {
+        return new Gtk.TreePath.from_indices(index);
+    }
+    
+    private Gtk.TreeIter iter_for_index(int index) {
+        return { stamp, (void*) properties[index], null, null };
+    }
+    
     public Type get_column_type(int column) {
         return_val_if_fail(column == 0, 0);
-        return typeof(PropertyEditor);
+        return typeof(ImageProperty);
     }
     
     public int get_n_columns() {
@@ -278,26 +265,26 @@ public class ImageMetadata : Object, Gtk.TreeModel {
         if (path.get_depth() > 1) return false;
         var index = path.get_indices()[0];
         if (index > properties.size - 1) return false;
-        iter = { stamp, (void*) properties[index], null, null };
+        iter = iter_for_index(index);
         return true;
     }
 
     public Gtk.TreePath get_path(Gtk.TreeIter iter) {
         return_val_if_fail(iter.stamp == stamp, null);
-        var pe = (PropertyEditor) iter.user_data;
-        return new Gtk.TreePath.from_indices(properties.index_of(pe));
+        var p = (ImageProperty) iter.user_data;
+        return path_for_index(properties.index_of(p));
     }
     
     public void get_value(Gtk.TreeIter iter, int column, out Value value) {
         return_if_fail(iter.stamp == stamp);
         return_if_fail(column == 0);
-        value = Value(typeof(PropertyEditor));
-        value.set_object((PropertyEditor) iter.user_data);
+        value = Value(typeof(ImageProperty));
+        value.set_object((ImageProperty) iter.user_data);
     }
     
     public bool iter_children(out Gtk.TreeIter iter, Gtk.TreeIter? parent) {
-        if (parent == null) {
-            iter = { stamp, (void*) properties[0], null, null };
+        if (parent == null && !properties.is_empty) {
+            iter = iter_for_index(0);
             return true;
         }
         return false;
@@ -315,7 +302,7 @@ public class ImageMetadata : Object, Gtk.TreeModel {
     
     public bool iter_next(ref Gtk.TreeIter iter) {
         return_val_if_fail(iter.stamp == stamp, false);
-        var index = properties.index_of((PropertyEditor) iter.user_data);
+        var index = properties.index_of((ImageProperty) iter.user_data);
         if (index < properties.size - 1) {
             iter.user_data = (void*) properties[index + 1];
             return true;
