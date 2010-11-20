@@ -30,7 +30,7 @@ namespace Genx {
     }
     
     [Compact]
-    [CCode (cname = "struct genxWriter_rec", free_function = "genxDispose")]
+    [CCode (cname = "genxWriter_rec", free_function = "genxDispose")]
     public class Writer {
     
         [CCode (has_target = 0)]

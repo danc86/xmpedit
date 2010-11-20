@@ -8,6 +8,8 @@
 
 #include <genx.h>
 
+typedef struct genxWriter_rec genxWriter_rec;
+
 genxNamespace genx_writer_declare_namespace(genxWriter w, const char *uri, const char *prefix);
 genxElement genx_writer_declare_element(genxWriter w, genxNamespace ns, const char *type);
 genxAttribute genx_writer_declare_attribute(genxWriter w, genxNamespace ns, const char *name);
