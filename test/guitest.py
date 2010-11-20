@@ -143,7 +143,7 @@ class Test(XmpeditTestCase):
         xmp = extract_xmp(self.tempfile.name)
         self.assertEquals(len(xmp), 2675)
         self.assertEquals(extract_xmp(self.tempfile.name),
-                u'''<?xpacket begin="\ufeff" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmpedit 0.0-dev"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about=""><Iptc4xmlCore:Location xmlns:Iptc4xmlCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/">UQ St Lucia</Iptc4xmlCore:Location><dc:description xmlns:dc="http://purl.org/dc/elements/1.1/" xml:lang="en">new description</dc:description></rdf:Description></rdf:RDF></x:xmpmeta>''' + ' ' * 2179 + '''<?xpacket end="w"?>''')
+                u'''<?xpacket begin="\ufeff" id="W5M0MpCehiHzreSzNTczkc9d"?><x:xmpmeta xmlns:x="adobe:ns:meta/" x:xmptk="xmpedit 0.0-dev"><rdf:RDF xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"><rdf:Description rdf:about=""><Iptc4xmlCore:Location xmlns:Iptc4xmlCore="http://iptc.org/std/Iptc4xmpCore/1.0/xmlns/">UQ St Lucia</Iptc4xmlCore:Location><dc:description xmlns:dc="http://purl.org/dc/elements/1.1/"><rdf:Alt><rdf:li xml:lang="en">new description</rdf:li></rdf:Alt></dc:description></rdf:Description></rdf:RDF></x:xmpmeta>''' + ' ' * 2143 + '''<?xpacket end="w"?>''')
 
 if __name__ == '__main__':
     unittest.main()

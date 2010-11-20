@@ -95,12 +95,18 @@ public class Description : Object, ImageProperty {
     private void update() {
         graph.remove_matching_statements(subject, DC_DESCRIPTION, null);
         if (_value.length > 0) {
+            var alt = new RDF.Blank();
+            graph.insert(new RDF.Statement(subject, DC_DESCRIPTION, alt));
+            graph.insert(new RDF.Statement(alt,
+                    new RDF.URIRef(RDF.RDF_NS + "type"),
+                    new RDF.URIRef(RDF.RDF_NS + "Alt")));
             RDF.PlainLiteral object;
             if (_lang.length > 0)
                 object = new RDF.PlainLiteral.with_lang(_value, _lang);
             else
                 object = new RDF.PlainLiteral(_value);
-            graph.insert(new RDF.Statement(subject, DC_DESCRIPTION, object));
+            graph.insert(new RDF.Statement(alt,
+                    new RDF.URIRef(RDF.RDF_NS + "li"), object));
         }
         changed();
     }
